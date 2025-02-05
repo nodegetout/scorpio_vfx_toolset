@@ -1,0 +1,53 @@
+name: Package Scorpio VFX Toolset CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  release:
+    types: [ created ]
+
+jobs:
+  build-and-test:
+    name: Build and Test Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Unity
+        uses: game-ci/unity-setup@v2
+        with:
+          unityVersion: 2019.4.32f1  # 修改为你的 Unity 版本
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Tests
+        uses: game-ci/unity-test-runner@v2
+        with:
+          projectPath: .
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    name: Publish Unity Package
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Create Unity Package
+        run: |
+          mkdir -p build
+          cd Packages
+          zip -r ../build/com.yourname.package-${{ github.event.release.tag_name }}.zip com.yourname.package
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/com.yourname.package-${{ github.event.release.tag_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

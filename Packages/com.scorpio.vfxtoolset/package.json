@@ -1,12 +1,15 @@
 {
-  "name": "com.nodegetout.vfx.toolset",
+  "name": "com.scorpio.vfxtoolset",
   "version": "0.0.1",
   "displayName": "Scorpio VFX Toolset",
   "description": "A toolset for vfx workflow.",
-  "unity": "2020.3",
+  "unity": "2019.4",
   "author": {
     "name": "Sean Ye",
     "email": "844134523@qq.com",
     "url": "https://nodegetout.github.com/"
+  },
+  "dependencies": {
+    "com.unity.editorcoroutines": "1.0.0"
   }
 }
