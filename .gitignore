@@ -34,3 +34,5 @@ sysinfo.txt
 #ide
 /.idea
 /.vscode
+
+/ProjectSettings/ProjectVersion.txt
