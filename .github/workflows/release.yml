@@ -43,8 +43,8 @@ jobs:
         run: |
           mkdir -p build
           cd Packages/com.scorpio.vfxtoolset
-          zip -r ../build/com.scorpio.vfxtoolset-${{ github.event.release.tag_name }}.zip com.scorpio.vfxtoolset
-
+          zip -r ../../build/com.scorpio.vfxtoolset-${{ github.event.release.tag_name }}.zip . -x "*/.*"
+          
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
