@@ -42,12 +42,12 @@ jobs:
       - name: Create Unity Package
         run: |
           mkdir -p build
-          cd Packages
-          zip -r ../build/com.yourname.package-${{ github.event.release.tag_name }}.zip com.yourname.package
+          cd Packages/com.scorpio.vfxtoolset
+          zip -r ../build/com.scorpio.vfxtoolset-${{ github.event.release.tag_name }}.zip com.scorpio.vfxtoolset
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: build/com.yourname.package-${{ github.event.release.tag_name }}.zip
+          files: build/com.scorpio.vfxtoolset-${{ github.event.release.tag_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
