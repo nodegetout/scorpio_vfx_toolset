@@ -8,7 +8,7 @@ on:
     branches:
       - main
   release:
-    types: [ created ]
+    types: [created]
 
 jobs:
   build-and-test:
@@ -21,7 +21,7 @@ jobs:
       - name: Setup Unity
         uses: game-ci/unity-setup@v2
         with:
-          unityVersion: 2019.4.32f1  # 修改为你的 Unity 版本
+          unityVersion: 2019.4.32f1 # 修改为你的 Unity 版本
           githubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Tests
@@ -42,9 +42,9 @@ jobs:
       - name: Create Unity Package
         run: |
           mkdir -p build
-          cd Packages/com.scorpio.vfxtoolset
+          cd com.scorpio.vfxtoolset
           zip -r ../../build/com.scorpio.vfxtoolset-${{ github.event.release.tag_name }}.zip ./*
-          
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
