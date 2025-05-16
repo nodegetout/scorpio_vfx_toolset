@@ -1,53 +1,44 @@
-name: Package Scorpio VFX Toolset CI/CD
+name: 🔖 Release
+run-name: 🔖 Release (${{ github.ref_name }})
 
 on:
+  workflow_dispatch:
   push:
     branches:
+      - preview
       - main
-  pull_request:
-    branches:
-      - main
-  release:
-    types: [created]
+      - v*.x
+    tags-ignore:
+      - "**"
 
 jobs:
-  build-and-test:
-    name: Build and Test Package
+  release:
+    name: 🔖 Release (${{ github.ref_name }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    outputs:
+      channel: ${{ steps.release.outputs.new_release_channel }}
+      released: ${{ steps.release.outputs.new_release_published }}
+      tag: ${{ steps.release.outputs.new_release_git_tag }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: 🚚 Checkout (${{ github.ref_name }})
+        uses: actions/checkout@v4
 
-      - name: Setup Unity
-        uses: game-ci/unity-action@v2
+      - name: 🔖 Run semantic release
+        uses: cycjimmy/semantic-release-action@v4
+        id: release
         with:
-          unityVersion: 2019.4.32f1 # 修改为你的 Unity 版本
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Tests
-        uses: game-ci/unity-test-runner@v2
-        with:
-          projectPath: .
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-
-  publish:
-    name: Publish Unity Package
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'release'
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Create Unity Package
-        run: |
-          mkdir -p build
-          cd com.scorpio.vfxtoolset
-          zip -r ../../build/com.scorpio.vfxtoolset-${{ github.event.release.tag_name }}.zip ./*
-
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/com.scorpio.vfxtoolset-${{ github.event.release.tag_name }}.zip
+          working_directory: Packages/src
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/git
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: |
+          echo "🔖 New release published: '${{ steps.release.outputs.new_release_published }}'" | tee -a $GITHUB_STEP_SUMMARY
+          echo "🔖 New release channel: '${{ steps.release.outputs.new_release_channel }}'" | tee -a $GITHUB_STEP_SUMMARY
+          echo "🔖 New release git tag: '${{ steps.release.outputs.new_release_git_tag }}'" | tee -a $GITHUB_STEP_SUMMARY
