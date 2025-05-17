@@ -36,3 +36,7 @@ sysinfo.txt
 /.vscode
 
 /ProjectSettings/ProjectVersion.txt
+
+
+# macos temp files
+*.DS_Store
