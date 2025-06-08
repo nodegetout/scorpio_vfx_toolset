@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using com.scorpio.vfxtoolset.Editor.Data;
 using UnityEditor;
 using UnityEngine;
 using UnityEditor.IMGUI.Controls;
@@ -11,7 +12,7 @@ public class ReferenceFinderWindow : EditorWindow
     //是否需要更新信息状态的key
     const string needUpdateStatePrefKey = "ReferenceFinderData_needUpdateState";
 
-    private static ReferenceFinderData data = new ReferenceFinderData();
+    private static ReferenceFinderController _controller = new ReferenceFinderController();
     private static bool initializedData = false;
     
     private bool isDepend = false;
@@ -58,9 +59,9 @@ public class ReferenceFinderWindow : EditorWindow
         if (!initializedData)
         {
             //初始化数据
-            if(!data.ReadFromCache())
+            if(!_controller.ReadFromCache())
             {
-                data.CollectDependenciesInfo();
+                _controller.CollectDependenciesInfo();
             }
             initializedData = true;
         }
@@ -150,26 +151,26 @@ public class ReferenceFinderWindow : EditorWindow
     }
     
     //绘制上条
-    public void DrawOptionBar()
+    private void DrawOptionBar()
     {
         EditorGUILayout.BeginHorizontal(toolbarGUIStyle);
         //刷新数据
         if (GUILayout.Button("Refresh Data", toolbarButtonGUIStyle))
         {
-            data.CollectDependenciesInfo();
+            _controller.CollectDependenciesInfo();
             needUpdateAssetTree = true;
             EditorGUIUtility.ExitGUI();
         }
         //修改模式
-        bool PreIsDepend = isDepend;
+        bool preIsDepend = isDepend;
         isDepend = GUILayout.Toggle(isDepend, isDepend ? "Model(Depend)" : "Model(Reference)", toolbarButtonGUIStyle,GUILayout.Width(100));
-        if(PreIsDepend != isDepend){
+        if(preIsDepend != isDepend){
             OnModelSelect();
         }
         //是否需要更新状态
-        bool PreNeedUpdateState = needUpdateState;
+        bool preNeedUpdateState = needUpdateState;
         needUpdateState = GUILayout.Toggle(needUpdateState, "Need Update State", toolbarButtonGUIStyle);
-        if (PreNeedUpdateState != needUpdateState)
+        if (preNeedUpdateState != needUpdateState)
         {
             PlayerPrefs.SetInt(needUpdateStatePrefKey, needUpdateState ? 1 : 0);
         }
@@ -223,11 +224,11 @@ public class ReferenceFinderWindow : EditorWindow
         stack.Push(guid);
         if (needUpdateState && !updatedAssetSet.Contains(guid))
         {
-            data.UpdateAssetState(guid);
+            _controller.UpdateAssetState(guid);
             updatedAssetSet.Add(guid);
         }        
         ++elementCount;
-        var referenceData = data.assetDict[guid];
+        var referenceData = _controller.assetDict[guid];
         var root = new AssetViewItem { id = elementCount, displayName = referenceData.name, data = referenceData, depth = _depth };
         var childGuids = isDepend ? referenceData.dependencies : referenceData.references;
         foreach (var childGuid in childGuids)

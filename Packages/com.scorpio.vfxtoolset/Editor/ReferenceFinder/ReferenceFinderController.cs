@@ -3,14 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
+using com.scorpio.vfxtoolset.Editor.Data;
 using UnityEditor;
 using UnityEngine;
 
-public class ReferenceFinderData
+public class ReferenceFinderController
 {
     //缓存路径
-    private const string CACHE_PATH = "Library/ReferenceFinderCache";
-    private const string CACHE_VERSION = "V1";
+    private static readonly string k_CachePath = "Library/ReferenceFinderCache";
+    private static readonly string k_CacheVersion = "V1";
 
     //资源引用信息字典
     public Dictionary<string, AssetDescription> assetDict = new Dictionary<string, AssetDescription>();
@@ -91,10 +92,7 @@ public class ReferenceFinderData
             ad.assetDependencyHash = assetDependencyHash.ToString();
             ad.dependencies = guids;
 
-            if (assetDict.ContainsKey(guid))
-                assetDict[guid] = ad;
-            else
-                assetDict.Add(guid, ad);
+            assetDict[guid] = ad;
         }
     }
 
@@ -102,7 +100,7 @@ public class ReferenceFinderData
     public bool ReadFromCache()
     {
         assetDict.Clear();
-        if (!File.Exists(CACHE_PATH))
+        if (!File.Exists(k_CachePath))
         {
             return false;
         }
@@ -111,12 +109,12 @@ public class ReferenceFinderData
         var serializedDependencyHash = new List<string>();
         var serializedDenpendencies = new List<int[]>();
         //反序列化数据
-        FileStream fs = File.OpenRead(CACHE_PATH);
+        FileStream fs = File.OpenRead(k_CachePath);
         try
         {
             BinaryFormatter bf = new BinaryFormatter();
             string cacheVersion = (string)bf.Deserialize(fs);
-            if (cacheVersion != CACHE_VERSION)
+            if (cacheVersion != k_CacheVersion)
             {
                 return false;
             }
@@ -169,8 +167,8 @@ public class ReferenceFinderData
     //写入缓存
     private void WriteToCache()
     {
-        if (File.Exists(CACHE_PATH))
-            File.Delete(CACHE_PATH);
+        if (File.Exists(k_CachePath))
+            File.Delete(k_CachePath);
 
         var serializedGuid = new List<string>();
         var serializedDependencyHash = new List<string>();
@@ -178,7 +176,7 @@ public class ReferenceFinderData
         //辅助映射字典
         var guidIndex = new Dictionary<string, int>();
         //序列化
-        using (FileStream fs = File.OpenWrite(CACHE_PATH))
+        using (FileStream fs = File.OpenWrite(k_CachePath))
         {
             foreach (var pair in assetDict)
             {
@@ -197,7 +195,7 @@ public class ReferenceFinderData
             }
 
             BinaryFormatter bf = new BinaryFormatter();
-            bf.Serialize(fs, CACHE_VERSION);
+            bf.Serialize(fs, k_CacheVersion);
             bf.Serialize(fs, serializedGuid);
             bf.Serialize(fs, serializedDependencyHash);
             bf.Serialize(fs, serializedDenpendencies);
@@ -258,16 +256,6 @@ public class ReferenceFinderData
             return "<color=#FFE300FF>No Data</color>";
         }
         return "Normal";
-    }
-
-    public class AssetDescription
-    {
-        public string name = "";
-        public string path = "";
-        public string assetDependencyHash;
-        public List<string> dependencies = new List<string>();
-        public List<string> references = new List<string>();
-        public AssetState state = AssetState.NORMAL;
     }
 
     public enum AssetState
