@@ -3,7 +3,8 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 
-
+namespace com.scorpio.vfxtoolset.Editor
+{
 //资源引用树
 public class AssetTreeView : TreeView
 {
@@ -16,14 +17,14 @@ public class AssetTreeView : TreeView
     private GUIStyle stateGUIStyle = new GUIStyle { richText = true, alignment = TextAnchor.MiddleCenter };
 
     //列信息
-    enum MyColumns
+    enum ColumnType
     {
         Name,
         Path,
         State,
     }
 
-    public AssetTreeView(TreeViewState state, MultiColumnHeader multicolumnHeader) : base(state, multicolumnHeader)
+    public AssetTreeView(TreeViewState state, MultiColumnHeader multiColumnHeader) : base(state, multiColumnHeader)
     {
         rowHeight = kRowHeights;
         columnIndexForTreeFoldouts = 0;
@@ -54,48 +55,48 @@ public class AssetTreeView : TreeView
     }
 
     //生成ColumnHeader
+    private static readonly MultiColumnHeaderState.Column[] k_ColumnDisplayInfoArray = new[]
+    {
+        //图标+名称
+        new MultiColumnHeaderState.Column
+        {
+            headerContent = new GUIContent("Name"),
+            headerTextAlignment = TextAlignment.Center,
+            sortedAscending = false,
+            width = 200,
+            minWidth = 60,
+            autoResize = false,
+            allowToggleVisibility = false,
+            canSort = false
+        },
+        //路径
+        new MultiColumnHeaderState.Column
+        {
+            headerContent = new GUIContent("Path"),
+            headerTextAlignment = TextAlignment.Center,
+            sortedAscending = false,
+            width = 360,
+            minWidth = 60,
+            autoResize = false,
+            allowToggleVisibility = false,
+            canSort = false
+        },
+        //状态
+        new MultiColumnHeaderState.Column
+        {
+            headerContent = new GUIContent("State"),
+            headerTextAlignment = TextAlignment.Center,
+            sortedAscending = false,
+            width = 60,
+            minWidth = 60,
+            autoResize = false,
+            allowToggleVisibility = true,
+            canSort = false
+        },
+    };
     public static MultiColumnHeaderState CreateDefaultMultiColumnHeaderState(float treeViewWidth)
     {
-        var columns = new[]
-        {
-            //图标+名称
-            new MultiColumnHeaderState.Column
-            {
-                headerContent = new GUIContent("Name"),
-                headerTextAlignment = TextAlignment.Center,
-                sortedAscending = false,
-                width = 200,
-                minWidth = 60,
-                autoResize = false,
-                allowToggleVisibility = false,
-                canSort = false
-            },
-            //路径
-            new MultiColumnHeaderState.Column
-            {
-                headerContent = new GUIContent("Path"),
-                headerTextAlignment = TextAlignment.Center,
-                sortedAscending = false,
-                width = 360,
-                minWidth = 60,
-                autoResize = false,
-                allowToggleVisibility = false,
-                canSort = false
-    },
-            //状态
-            new MultiColumnHeaderState.Column
-            {
-                headerContent = new GUIContent("State"),
-                headerTextAlignment = TextAlignment.Center,
-                sortedAscending = false,
-                width = 60,
-                minWidth = 60,
-                autoResize = false,
-                allowToggleVisibility = true,
-                canSort = false
-            },
-        };
-        var state = new MultiColumnHeaderState(columns);
+        var state = new MultiColumnHeaderState(k_ColumnDisplayInfoArray);
         return state;
     }
 
@@ -109,17 +110,17 @@ public class AssetTreeView : TreeView
         var item = (AssetViewItem)args.item;
         for (int i = 0; i < args.GetNumVisibleColumns(); ++i)
         {
-            CellGUI(args.GetCellRect(i), item, (MyColumns)args.GetColumn(i), ref args);
+            CellGUI(args.GetCellRect(i), item, (ColumnType)args.GetColumn(i), ref args);
         }
     }
 
     //绘制列表中的每项内容
-    void CellGUI(Rect cellRect, AssetViewItem item, MyColumns column, ref RowGUIArgs args)
+    void CellGUI(Rect cellRect, AssetViewItem item, ColumnType column, ref RowGUIArgs args)
     {
         CenterRectUsingSingleLineHeight(ref cellRect);
         switch (column)
         {
-            case MyColumns.Name:
+            case ColumnType.Name:
                 {
                     var iconRect = cellRect;
                     iconRect.x += GetContentIndent(item);
@@ -134,12 +135,12 @@ public class AssetTreeView : TreeView
                     base.RowGUI(args);
                 }
                 break;
-            case MyColumns.Path:
+            case ColumnType.Path:
                 {
                     GUI.Label(cellRect, item.data.path);
                 }
                 break;
-            case MyColumns.State:
+            case ColumnType.State:
                 {
                     GUI.Label(cellRect, ReferenceFinderController.GetInfoByState(item.data.state), stateGUIStyle);
                 }
@@ -161,3 +162,5 @@ public class AssetTreeView : TreeView
         return null;
     }
 }
+}
+
