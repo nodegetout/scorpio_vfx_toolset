@@ -38,7 +38,7 @@ namespace com.scorpio.vfxtoolset.Editor
             }
         }
         
-        void DrawModules(MaterialEditor materialEditor, Material material, MaterialProperty[] properties)
+        protected virtual void DrawModules(MaterialEditor materialEditor, Material material, MaterialProperty[] properties)
         {
             foreach (var moduleData in s_moduleDataMap)
             {
@@ -46,7 +46,7 @@ namespace com.scorpio.vfxtoolset.Editor
             }
         }
         
-        void DrawModuleWithData(MaterialEditor materialEditor, ModuleData moduleData, Material material, MaterialProperty[] properties)
+        protected void DrawModuleWithData(MaterialEditor materialEditor, ModuleData moduleData, Material material, MaterialProperty[] properties)
         {
             EditorGUILayout.Space();
             moduleData.moduleFlag = Foldout(moduleData.moduleFlag, moduleData.moduleName);
