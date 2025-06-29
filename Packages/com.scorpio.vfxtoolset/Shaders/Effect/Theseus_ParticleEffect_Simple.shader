@@ -1,0 +1,129 @@
+﻿Shader "Theseus/VFX/ParticleEffect_Simple"
+{
+    Properties
+    {
+		[Enum(Add,1,Blend,10)]_DstBlend("混合模式", Float) = 10
+    	
+    	[Header(TODO__custom_data_rules)]
+		[Toggle(_REQUIRE_CUSTOMDATA)]_RequireCustomData("开启CustomData",Float)=0
+		
+		[Space(5)]
+		[MainTexture]_BaseMap("主贴图", 2D) = "white" {}
+		[Toggle(UnMult)]_UnMult("UnMult去黑",Float)=0
+		_BaseColor("TintColor", Color) = (1,1,1,1)
+		_FrontIntensity("FrontIntensity",Range(0, 2))=1
+    	_BaseUVParams("BaseUVParams", Vector) = (0,0,1,0)
+		
+		[Space(10)]
+		[Enum(UnityEngine.Rendering.CullMode)]_CullMode("Cull",Float) = 0
+		[Enum(Off, 0, On, 1)]_ZWrite("ZWrite", Float) = 0
+		[Enum(On, 0,Off, 4)]_ZTest("总是最前", Float) = 4
+		
+		[Enum(UnityEngine.Rendering.CompareFunction)]_StencilComp("StencilComp",Float)=8
+		[Enum(UnityEngine.Rendering.StencilOp)]_StencilPass("StencilPass",Float)=0
+		[Enum(UnityEngine.Rendering.StencilOp)]_StencilFail("StencilFail",Float)=0
+		[Enum(UnityEngine.Rendering.StencilOp)]_StencilZFail("StencilZFail",Float)=0
+		_StencilRef("StencilRef",float)=0
+		_StencilReadMask("StencilReadMask",Float)=255
+		_StencilWriteMask("StencilWriteMask",Float)=255
+    }
+    SubShader
+    {
+        Tags
+        {
+            "IgnoreProjector" = "True"
+            "Queue" = "Transparent"
+            "RenderType" = "Transparent"
+        }
+
+        Pass
+        {
+            Blend SrcAlpha [_DstBlend]
+            
+			Cull [_CullMode]
+			ZWrite [_ZWrite]
+			ZTest[_ZTest]
+			
+			Stencil
+			{
+				Ref [_StencilRef]
+				ReadMask [_StencilReadMask]
+				WriteMask [_StencilWriteMask]
+				Comp [_StencilComp]
+				Pass [_StencilPass]
+				Fail [_StencilFail]
+				ZFail [_StencilZFail]
+			}
+            
+            HLSLPROGRAM
+            #pragma vertex   Vertex
+            #pragma fragment Fragment
+
+            // global keywords : #pragma multi_compile
+            // material keywords : #pragma shader_feature
+            #pragma shader_feature_local __ _REQUIRE_CUSTOMDATA
+            // vertex keywords : #pragma shader_feature_local_vertex
+            // fragment keywords : #pragma shader_feature_local_fragment
+
+            // MicroDefines:
+            #define VERTEX_REQUIRE_VERTEXCOLOR
+            #define FRAGMENT_REQUIRE_VERTEXCOLOR
+            
+            #include "./VFXCore.hlsl"
+            
+            // import features: for example #include "../Feature/Feature.hlsl"
+
+            sampler2D _BaseMap;
+            half4     _BaseMap_ST;
+            half4     _BaseColor;
+			half      _FrontIntensity;
+            half4     _BaseUVParams;
+            #define _DiffXSpeed   _BaseUVParams.x
+			#define _DiffYSpeed   _BaseUVParams.y
+			#define _MainTexScale _BaseUVParams.z
+			#define _MainTexAngle _BaseUVParams.w
+            half _UnMult;
+            
+
+            Varyings Vertex(Attributes input)
+            {
+                Varyings output = (Varyings)0;
+            	output.uv0.xy   = input.uv0.xy;
+            	// TODO: Do uv data remapping
+            	float3 positionWS  = TransformObjectToWorld(input.positionOS.xyz);
+				output.positionHCS = TransformWorldToHClip(positionWS);
+                return output;
+            }
+            
+            half4 Fragment(Varyings input) : SV_Target
+            {
+            	half4 faceColor = half4(_BaseColor.rgb *_FrontIntensity, _BaseColor.a);
+
+				// base map--------------------------------------
+				float2 diffUV = input.uv0.xy;
+            	float2 rotatedDiffUV = RotateScaleUV(diffUV, _MainTexAngle, _MainTexScale);
+				float2 finalDiff   = TRANSFORM_TEX(rotatedDiffUV,_BaseMap);
+            	finalDiff += _Time.yy * _BaseUVParams.xy;
+            	half4  baseMapValue = tex2D(_BaseMap, finalDiff);
+            	
+            	half3 diffColor   = half3(baseMapValue.rgb);
+            	half  alphaWeight = lerp(1, baseMapValue.a, _UnMult);
+	            diffColor *= alphaWeight;
+
+            	
+            	half4 finalColor;
+            	finalColor.rgb = diffColor;
+            	finalColor.a = baseMapValue.a * _BaseColor.a;
+            	
+            	finalColor.rgb *= faceColor.rgb;
+				finalColor.a   *= faceColor.a;
+            	
+                // TODO: tonemapping!!!
+                // TonemapForward(finalColor.rgb);
+                return finalColor;
+            }
+            ENDHLSL
+        }
+    }
+CustomEditor "com.scorpio.vfxtoolset.Editor.SimpleEffectShaderGUI"
+}

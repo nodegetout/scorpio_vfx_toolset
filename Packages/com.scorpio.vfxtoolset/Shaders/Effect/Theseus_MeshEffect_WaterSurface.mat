@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Theseus_MeshEffect_WaterSurface
+  m_Shader: {fileID: 4800000, guid: 705313fa765628c48a4a5d4ef990bc48, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _AlbedoMap:
+        m_Texture: {fileID: 10309, guid: 0000000000000000f000000000000000, type: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DissolveTex:
+        m_Texture: {fileID: 10300, guid: 0000000000000000f000000000000000, type: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EmissiveMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EnvCapTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VertexAnimMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WaveMaskMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WaveNormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _DiffuseLerp: 0
+    - _DiffuseLerp1: 0
+    - _DiffuseLerp2: 0
+    - _Dissolve: -0.4
+    - _DissolveON: 0.031
+    - _EdgeWidth: 0.017
+    - _FresnelIntensity: 5
+    - _FresnelPower: 4.01
+    - _Gloss: 8
+    - _NormalScaleA: 0.353
+    - _NormalScaleB: 0.621
+    - _Scale_Refraction: -0.021
+    - _VAHeightScale: 0.644
+    - _VARange: 0.621
+    - _VAScale: 1
+    m_Colors:
+    - _AlbedoColor: {r: 1, g: 1, b: 1, a: 1}
+    - _DissolveEdgeColor: {r: 2.2423477, g: 3.8380609, b: 5.992157, a: 1}
+    - _DissolveEdgeColor2: {r: 0, g: 0, b: 0, a: 1}
+    - _DissolveLV: {r: 0.183, g: 0.563, b: 0.08, a: 0}
+    - _DissolveTexUVG: {r: 1, g: 1, b: 0, a: 8}
+    - _DissolveTexUVR: {r: 10, g: 5, b: 1, a: 12}
+    - _EmissiveColor: {r: 1, g: 1, b: 1, a: 1}
+    - _EnvColor: {r: 2, g: 2, b: 2, a: 1}
+    - _FresnelColor: {r: 0, g: 0, b: 0, a: 1}
+    - _RefractEnvColor: {r: 1, g: 1, b: 1, a: 1}
+    - _SpecColor: {r: 1, g: 1, b: 1, a: 1}
+    - _VAParams: {r: 5, g: 3, b: 3, a: 12}
+    - _WaveParamsB: {r: 5, g: 3, b: 3, a: 12}
+  m_BuildTextureStacks: []
