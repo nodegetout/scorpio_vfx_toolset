@@ -1,6 +1,6 @@
 {
   "name": "com.scorpio.vfxtoolset",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "displayName": "Scorpio VFX Toolset",
   "description": "A toolset for vfx workflow.",
   "unity": "2019.4",
@@ -10,6 +10,7 @@
     "url": "https://nodegetout.github.com/"
   },
   "dependencies": {
-    "com.unity.editorcoroutines": "1.0.0"
+    "com.unity.editorcoroutines": "1.0.0",
+    "com.unity.render-pipelines.core": "14.0.0"
   }
 }
