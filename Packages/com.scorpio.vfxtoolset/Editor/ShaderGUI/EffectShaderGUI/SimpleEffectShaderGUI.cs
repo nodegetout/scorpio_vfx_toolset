@@ -1,23 +1,21 @@
-﻿using UnityEditor;
+﻿using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 namespace com.scorpio.vfxtoolset.Editor
 {
     public class SimpleEffectShaderGUI : EffectShaderGUIBase
     {
+        private static Dictionary<string, ModuleData> s_SimpleEffectModuleDataMap = new Dictionary<string, ModuleData>()
+        {
+            {"【混合模式设置】", new ModuleData("【混合模式设置】", new[] { new PropertyInfo("_DstBlend", "混合模式") })},
+            {"【主贴图设置】", new ModuleData("【主贴图设置】", EffectModuleConfigs.k_MainModulePropConfig)},
+            {"【测试设置】", new ModuleData("【测试设置】", EffectModuleConfigs.k_TestConfigModulePropConfig)},
+            {"【Stencil设置】", new ModuleData("【Stencil设置】", EffectModuleConfigs.k_StencilModulePropConfig)}
+        };
+        
         protected override void AppendModuleData()
         {
-            var blendModeModule  = new ModuleData("【混合模式设置】", new[]{new PropertyInfo("_DstBlend", "混合模式")});
-            var mainModule       = new ModuleData("【主贴图设置】", EffectModuleConfigs.k_MainModulePropConfig);
-            // var customDataModule = new ModuleData("【CustomData设置】", EffectModuleConfigs.k_SpecialModulePropConfig);
-            var visibilityModule = new ModuleData("【测试设置】", EffectModuleConfigs.k_TestConfigModulePropConfig);
-            var stencilModule    = new ModuleData("【Stencil设置】", EffectModuleConfigs.k_StencilModulePropConfig);
-            
-            s_moduleDataMap.Add(blendModeModule.moduleName, blendModeModule);
-            // _moduleDataMap.Add(customDataModule.moduleName, customDataModule);
-            s_moduleDataMap.Add(mainModule.moduleName, mainModule);
-            s_moduleDataMap.Add(visibilityModule.moduleName, visibilityModule);
-            s_moduleDataMap.Add(stencilModule.moduleName, stencilModule);
         }
         
         #region Property DrawerFunctions
@@ -33,7 +31,10 @@ namespace com.scorpio.vfxtoolset.Editor
 
         protected override void AppendPropertyDrawerFunc()
         {
-            _customPropertyFuncMap.Add(PropertyType.UVParamsProperty, DrawUVParamsProperty);
+            if (!_customPropertyFuncMap.ContainsKey(PropertyType.UVParamsProperty))
+            {
+                _customPropertyFuncMap.Add(PropertyType.UVParamsProperty, DrawUVParamsProperty);
+            }
         }
         
         public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
@@ -43,16 +44,16 @@ namespace com.scorpio.vfxtoolset.Editor
             base.OnGUI(materialEditor, properties);
         }
 
+        protected override void DrawModules(MaterialEditor materialEditor, Material material, MaterialProperty[] properties)
+        {
+            foreach (var moduleData in s_SimpleEffectModuleDataMap)
+            {
+                DrawModuleWithData(materialEditor,  moduleData.Value, material, properties);
+            }
+        }
+
         private void RemoveCustomDataModuleForMeshEffect(Material material)
         {
-            // if (material != null && material.shader.name.Contains("MeshEffect"))
-            // {
-                // Debug.Log($"{material.shader.name}");
-                // if (_moduleDataList.ContainsKey("【CustomData设置】"))
-                // {
-                //     _moduleDataMap.Remove("【CustomData设置】");
-                // }
-            // }
         }
     }
 }
