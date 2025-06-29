@@ -1,6 +1,6 @@
 {
   "name": "com.scorpio.vfxtoolset",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "displayName": "Scorpio VFX Toolset",
   "description": "A toolset for vfx workflow.",
   "unity": "2019.4",
