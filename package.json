@@ -1,0 +1,22 @@
+{
+  "name": "com.scorpio.vfxtoolset",
+  "version": "0.0.1-preview",
+  "displayName": "Scorpio VFX Toolset",
+  "description": "A comprehensive Visual Effects toolset for Unity.",
+  "unity": "2019.3",
+  "dependencies": {
+  },
+  "keywords": ["vfx", "effects", "tool", "scorpio"],
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com",
+    "url": "https://yourwebsite.com"
+  },
+  "samples": [
+    {
+      "displayName": "Basic VFX Toolset Examples",
+      "description": "Basic examples demonstrating core features.",
+      "path": "Samples/ExampleVFXScenes"
+    }
+  ]
+}
