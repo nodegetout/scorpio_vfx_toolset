@@ -5,6 +5,7 @@
   "description": "A comprehensive Visual Effects toolset for Unity.",
   "unity": "2019.3",
   "dependencies": {
+    "com.unity.ide.rider": "3.0.36"
   },
   "keywords": ["vfx", "effects", "tool", "scorpio"],
   "author": {
