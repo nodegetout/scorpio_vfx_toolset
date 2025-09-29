@@ -5,7 +5,7 @@ using UnityEngine;
 using Scorpio.VFXToolset.Editor.Data;
 using ShaderInfo = Scorpio.VFXToolset.Editor.Data.ShaderInfo;
 
-namespace Editor.ShaderTools
+namespace Scorpio.VFXToolset.Editor
 {
     public class ShaderReferenceScanner : EditorWindow
     {
