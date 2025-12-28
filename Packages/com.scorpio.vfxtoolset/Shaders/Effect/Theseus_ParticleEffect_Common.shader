@@ -189,5 +189,5 @@ Shader "Theseus/VFX/ParticleEffect_Common"
             ENDHLSL
         }
     }
-CustomEditor "com.scorpio.vfxtoolset.Editor.CommonEffectShaderGUI"
+CustomEditor "ScorpioEditor.CommonEffectShaderGUI"
 }

@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEditor.ProjectWindowCallback;
 using UnityEngine;
 
-namespace com.scorpio.vfxtoolset.Editor
+namespace ScorpioEditor
 {
     public static class EffectShaderTemplateProcessor
     {

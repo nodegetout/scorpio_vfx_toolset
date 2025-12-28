@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEditor;
 
-namespace com.scorpio.vfxtoolset.Editor
+namespace ScorpioEditor
 {
     public class ModuleData
     {

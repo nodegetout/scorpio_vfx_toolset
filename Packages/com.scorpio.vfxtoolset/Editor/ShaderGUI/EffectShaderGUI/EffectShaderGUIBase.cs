@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace com.scorpio.vfxtoolset.Editor
+namespace ScorpioEditor
 {
     public abstract class EffectShaderGUIBase : ShaderGUI
     {

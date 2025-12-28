@@ -116,5 +116,5 @@ Shader "Scorpio/VFX/MeshEffect_#NAME#"
             ENDHLSL
         }
     }
-CustomEditor "com.scorpio.vfxtoolset.Editor.SimpleEffectShaderGUI"
+CustomEditor "ScorpioEditor.SimpleEffectShaderGUI"
 }

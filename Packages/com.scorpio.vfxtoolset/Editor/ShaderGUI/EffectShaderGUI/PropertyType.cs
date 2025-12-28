@@ -1,4 +1,4 @@
-﻿namespace com.scorpio.vfxtoolset.Editor
+﻿namespace ScorpioEditor
 {
     public enum PropertyType
     {

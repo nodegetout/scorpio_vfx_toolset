@@ -125,5 +125,5 @@
             ENDHLSL
         }
     }
-CustomEditor "com.scorpio.vfxtoolset.Editor.SimpleEffectShaderGUI"
+CustomEditor "ScorpioEditor.SimpleEffectShaderGUI"
 }

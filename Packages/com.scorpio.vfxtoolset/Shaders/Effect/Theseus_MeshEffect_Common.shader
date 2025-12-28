@@ -159,5 +159,5 @@ Shader "Hidden/ScVFX/MeshEffect_Common"
             ENDHLSL
         }
     }
-CustomEditor "com.scorpio.vfxtoolset.Editor.CommonEffectShaderGUI"
+CustomEditor "ScorpioEditor.CommonEffectShaderGUI"
 }
