@@ -65,11 +65,15 @@ namespace ScorpioEditor
     /// </summary>
     public class Vector4SplitDrawer : MaterialPropertyDrawer
     {
-        // ── 字段 ─────────────────────────────────────────────────────
+        // ── 字段 ────────────────────────────────────────────────────
         private readonly SplitMode _mode;
         private readonly float     _labelWidth;
         private readonly bool      _modeValid;
         private readonly string    _modeErrorMsg;
+
+        // drawer 缓存：避免每帧 new，_cachedDisplayName 用于热重载失效检测
+        private IFloatComponentDrawer[] _cachedDrawers;
+        private string                  _cachedDisplayName;
 
         // ── 构造函数 ─────────────────────────────────────────────────
 
@@ -98,29 +102,45 @@ namespace ScorpioEditor
 
         public override float GetPropertyHeight(MaterialProperty prop, string label, MaterialEditor editor)
         {
-            string errorMsg = GetValidationError(prop);
-            if (errorMsg != null)
+            if (!TryGetValidated(prop, out _, out string errorMsg))
                 return DrawerRectHelper.CalcHelpBoxHeight(errorMsg);
 
-            int lineCount = _mode == SplitMode.FourFloats ? 4 : 2;
-            return DrawerRectHelper.CalcTotalHeight(lineCount);
+            switch (_mode)
+            {
+                case SplitMode.FourFloats:
+                    return DrawerRectHelper.CalcTotalHeight(4);
+
+                case SplitMode.TwoVector2:
+                    // 两个 Vector2Field，每个占两行高度，中间加一个行间距
+                    return DrawerRectHelper.CalcVector2FieldHeight() * 2f
+                         + DrawerRectHelper.LineSpacing;
+
+                case SplitMode.Vector3Float:
+                    // 一个 Vector3Field（两行高）+ 一个 float 行（含间距）
+                    return DrawerRectHelper.CalcVector3FieldHeight()
+                         + DrawerRectHelper.LineHeight;
+
+                default:
+                    return DrawerRectHelper.CalcTotalHeight(2);
+            }
         }
 
         // ── OnGUI ────────────────────────────────────────────────────
 
         public override void OnGUI(Rect position, MaterialProperty prop, GUIContent label, MaterialEditor editor)
         {
-            string errorMsg = GetValidationError(prop);
-            if (errorMsg != null)
+            if (!TryGetValidated(prop, out ComponentConfig[] configs, out string errorMsg))
             {
                 EditorGUI.HelpBox(position, errorMsg, MessageType.Warning);
                 return;
             }
 
-            // 解析 displayName（此时三重校验已通过，TryParse 必然成功）
-            Vector4SplitDisplayNameParser.TryParse(
-                prop.displayName, _mode,
-                out _, out ComponentConfig[] configs, out _);
+            // 懒初始化 / 热重载失效检测：displayName 变化时重建 drawers
+            if (_cachedDrawers == null || prop.displayName != _cachedDisplayName)
+            {
+                _cachedDrawers     = BuildDrawers(configs);
+                _cachedDisplayName = prop.displayName;
+            }
 
             switch (_mode)
             {
@@ -136,25 +156,57 @@ namespace ScorpioEditor
             }
         }
 
-        // ── 三重校验 ─────────────────────────────────────────────────
+        // ── 校验 + 解析（合并，消除重复 TryParse）───────────────────
 
-        private string GetValidationError(MaterialProperty prop)
+        /// <summary>
+        /// 合并三重校验与 displayName 解析，一次调用同时完成两件事。
+        /// </summary>
+        /// <param name="prop">当前 MaterialProperty。</param>
+        /// <param name="configs">解析成功时的分量配置数组；失败时为 null。</param>
+        /// <param name="errorMsg">校验失败时的错误信息；成功时为 null。</param>
+        /// <returns>校验与解析均成功返回 true，否则 false。</returns>
+        private bool TryGetValidated(MaterialProperty prop,
+                                     out ComponentConfig[] configs,
+                                     out string errorMsg)
         {
+            configs  = null;
+            errorMsg = null;
+
             // 校验1：SplitMode 字符串合法性
             if (!_modeValid)
-                return _modeErrorMsg;
+            {
+                errorMsg = _modeErrorMsg;
+                return false;
+            }
 
             // 校验2：prop.type 必须是 Vector
             if (prop.type != MaterialProperty.PropType.Vector)
-                return $"[Vector4Split] Used on a non-Vector property \"{prop.name}\" "
-                     + $"(type: {prop.type}). This drawer only supports Vector properties.";
+            {
+                errorMsg = $"[Vector4Split] Used on a non-Vector property \"{prop.name}\" "
+                         + $"(type: {prop.type}). This drawer only supports Vector properties.";
+                return false;
+            }
 
-            // 校验3：displayName 格式（## 存在 + 段数正确）
+            // 校验3 + 解析：displayName 格式（## 存在 + 段数正确）
             bool ok = Vector4SplitDisplayNameParser.TryParse(
                 prop.displayName, _mode,
-                out _, out _, out string parseError);
+                out _, out configs, out errorMsg);
 
-            return ok ? null : parseError;
+            return ok;
+        }
+
+        // ── Drawer 缓存构建 ──────────────────────────────────────────
+
+        /// <summary>
+        /// 根据 configs 构建 IFloatComponentDrawer 数组。
+        /// 仅在懒初始化或 displayName 热重载变化时调用，避免每帧 new。
+        /// </summary>
+        private IFloatComponentDrawer[] BuildDrawers(ComponentConfig[] configs)
+        {
+            var drawers = new IFloatComponentDrawer[configs.Length];
+            for (int i = 0; i < configs.Length; i++)
+                drawers[i] = ComponentDrawerFactory.Create(configs[i], _labelWidth);
+            return drawers;
         }
 
         // ── FourFloats ───────────────────────────────────────────────
@@ -171,30 +223,31 @@ namespace ScorpioEditor
             bool mixedZ = IsMixedFloat(editor, name, v => v.z);
             bool mixedW = IsMixedFloat(editor, name, v => v.w);
 
-            var drawers = new IFloatComponentDrawer[4];
-            for (int i = 0; i < 4; i++)
-                drawers[i] = ComponentDrawerFactory.Create(configs[i], _labelWidth);
-
-            float newX = current.x;
-            float newY = current.y;
-            float newZ = current.z;
-            float newW = current.w;
+            float newX    = current.x;
+            float newY    = current.y;
+            float newZ    = current.z;
+            float newW    = current.w;
             bool  changed = false;
 
+            string labelX = configs[0]?.Label ?? string.Empty;
+            string labelY = configs[1]?.Label ?? string.Empty;
+            string labelZ = configs[2]?.Label ?? string.Empty;
+            string labelW = configs[3]?.Label ?? string.Empty;
+
             EditorGUI.BeginChangeCheck();
-            float tmpX = drawers[0].Draw(DrawerRectHelper.GetLineRect(position, 0), configs[0].Label, current.x, mixedX, _labelWidth);
+            float tmpX = _cachedDrawers[0].Draw(DrawerRectHelper.GetLineRect(position, 0), labelX, current.x, mixedX, _labelWidth);
             if (EditorGUI.EndChangeCheck()) { newX = tmpX; changed = true; }
 
             EditorGUI.BeginChangeCheck();
-            float tmpY = drawers[1].Draw(DrawerRectHelper.GetLineRect(position, 1), configs[1].Label, current.y, mixedY, _labelWidth);
+            float tmpY = _cachedDrawers[1].Draw(DrawerRectHelper.GetLineRect(position, 1), labelY, current.y, mixedY, _labelWidth);
             if (EditorGUI.EndChangeCheck()) { newY = tmpY; changed = true; }
 
             EditorGUI.BeginChangeCheck();
-            float tmpZ = drawers[2].Draw(DrawerRectHelper.GetLineRect(position, 2), configs[2].Label, current.z, mixedZ, _labelWidth);
+            float tmpZ = _cachedDrawers[2].Draw(DrawerRectHelper.GetLineRect(position, 2), labelZ, current.z, mixedZ, _labelWidth);
             if (EditorGUI.EndChangeCheck()) { newZ = tmpZ; changed = true; }
 
             EditorGUI.BeginChangeCheck();
-            float tmpW = drawers[3].Draw(DrawerRectHelper.GetLineRect(position, 3), configs[3].Label, current.w, mixedW, _labelWidth);
+            float tmpW = _cachedDrawers[3].Draw(DrawerRectHelper.GetLineRect(position, 3), labelW, current.w, mixedW, _labelWidth);
             if (EditorGUI.EndChangeCheck()) { newW = tmpW; changed = true; }
 
             if (changed)
@@ -214,26 +267,34 @@ namespace ScorpioEditor
             var zw = new Vector2(current.z, current.w);
 
             bool mixedXY = IsMixedVec2(editor, name, v => new Vector2(v.x, v.y));
-            bool mixedZW = IsMixedVec2(editor, name, v => new Vector2(v.z, v.w));
+            bool mixedZw = IsMixedVec2(editor, name, v => new Vector2(v.z, v.w));
 
-            Vector2 newXY = xy;
-            Vector2 newZW = zw;
-            bool changed = false;
+            // 动态高度：Vector2Field 内部占两行，按真实高度分配 Rect，消除输入框挤压
+            float vec2H  = DrawerRectHelper.CalcVector2FieldHeight();
+            Rect  rectXY = DrawerRectHelper.GetRectAtOffset(position, 0f, vec2H);
+            Rect  rectZw = DrawerRectHelper.GetRectAtOffset(position, vec2H + DrawerRectHelper.LineSpacing, vec2H);
+
+            string labelXY = configs[0]?.Label ?? string.Empty;
+            string labelZw = configs[1]?.Label ?? string.Empty;
+
+            Vector2 newXY   = xy;
+            Vector2 newZw   = zw;
+            bool    changed = false;
 
             EditorGUI.showMixedValue = mixedXY;
             EditorGUI.BeginChangeCheck();
-            Vector2 tmpXY = EditorGUI.Vector2Field(DrawerRectHelper.GetLineRect(position, 0), configs[0].Label, xy);
+            Vector2 tmpXY = EditorGUI.Vector2Field(rectXY, labelXY, xy);
             if (EditorGUI.EndChangeCheck()) { newXY = tmpXY; changed = true; }
             EditorGUI.showMixedValue = false;
 
-            EditorGUI.showMixedValue = mixedZW;
+            EditorGUI.showMixedValue = mixedZw;
             EditorGUI.BeginChangeCheck();
-            Vector2 tmpZW = EditorGUI.Vector2Field(DrawerRectHelper.GetLineRect(position, 1), configs[1].Label, zw);
-            if (EditorGUI.EndChangeCheck()) { newZW = tmpZW; changed = true; }
+            Vector2 tmpZw = EditorGUI.Vector2Field(rectZw, labelZw, zw);
+            if (EditorGUI.EndChangeCheck()) { newZw = tmpZw; changed = true; }
             EditorGUI.showMixedValue = false;
 
             if (changed)
-                SetVectorValueAll(editor, name, new Vector4(newXY.x, newXY.y, newZW.x, newZW.y));
+                SetVectorValueAll(editor, name, new Vector4(newXY.x, newXY.y, newZw.x, newZw.y));
         }
 
         // ── Vector3Float ─────────────────────────────────────────────
@@ -250,20 +311,29 @@ namespace ScorpioEditor
             bool mixedXYZ = IsMixedVec3(editor, name, v => new Vector3(v.x, v.y, v.z));
             bool mixedW   = IsMixedFloat(editor, name, v => v.w);
 
-            IFloatComponentDrawer wDrawer = ComponentDrawerFactory.Create(configs[1], _labelWidth);
+            // 动态高度：Vector3Field 内部占两行，w 行紧随其后，消除输入框挤压
+            float vec3H   = DrawerRectHelper.CalcVector3FieldHeight();
+            Rect  rectXYZ = DrawerRectHelper.GetRectAtOffset(position, 0f, vec3H);
+            Rect  rectW   = DrawerRectHelper.GetRectAtOffset(
+                                position,
+                                vec3H + DrawerRectHelper.LineSpacing,
+                                EditorGUIUtility.singleLineHeight);
 
-            Vector3 newXYZ = xyz;
-            float   newW   = current.w;
+            string labelXYZ = configs[0]?.Label ?? string.Empty;
+            string labelW   = configs[1]?.Label ?? string.Empty;
+
+            Vector3 newXYZ  = xyz;
+            float   newW    = current.w;
             bool    changed = false;
 
             EditorGUI.showMixedValue = mixedXYZ;
             EditorGUI.BeginChangeCheck();
-            Vector3 tmpXYZ = EditorGUI.Vector3Field(DrawerRectHelper.GetLineRect(position, 0), configs[0].Label, xyz);
+            Vector3 tmpXYZ = EditorGUI.Vector3Field(rectXYZ, labelXYZ, xyz);
             if (EditorGUI.EndChangeCheck()) { newXYZ = tmpXYZ; changed = true; }
             EditorGUI.showMixedValue = false;
 
             EditorGUI.BeginChangeCheck();
-            float tmpW = wDrawer.Draw(DrawerRectHelper.GetLineRect(position, 1), configs[1].Label, current.w, mixedW, _labelWidth);
+            float tmpW = _cachedDrawers[1].Draw(rectW, labelW, current.w, mixedW, _labelWidth);
             if (EditorGUI.EndChangeCheck()) { newW = tmpW; changed = true; }
 
             if (changed)
@@ -292,7 +362,10 @@ namespace ScorpioEditor
             for (int i = 1; i < editor.targets.Length; i++)
             {
                 Vector2 val = selector(((Material)editor.targets[i]).GetVector(propName));
-                if (val != ref0) return true;
+                // 逐分量使用 Mathf.Approximately，与 IsMixedFloat 行为严格对齐
+                if (!Mathf.Approximately(val.x, ref0.x) ||
+                    !Mathf.Approximately(val.y, ref0.y))
+                    return true;
             }
             return false;
         }
@@ -304,7 +377,11 @@ namespace ScorpioEditor
             for (int i = 1; i < editor.targets.Length; i++)
             {
                 Vector3 val = selector(((Material)editor.targets[i]).GetVector(propName));
-                if (val != ref0) return true;
+                // 逐分量使用 Mathf.Approximately，与 IsMixedFloat 行为严格对齐
+                if (!Mathf.Approximately(val.x, ref0.x) ||
+                    !Mathf.Approximately(val.y, ref0.y) ||
+                    !Mathf.Approximately(val.z, ref0.z))
+                    return true;
             }
             return false;
         }
@@ -313,13 +390,15 @@ namespace ScorpioEditor
 
         private static void SetVectorValueAll(MaterialEditor editor, string propName, Vector4 value)
         {
+            // 批量记录 Undo，多材质编辑时仅生成一条 Undo 记录
+            Undo.RecordObjects(editor.targets, "Vector4Split Change");
             foreach (var target in editor.targets)
             {
                 var mat = (Material)target;
-                Undo.RecordObject(mat, "Vector4Split Change");
                 mat.SetVector(propName, value);
                 EditorUtility.SetDirty(mat);
             }
         }
     }
 }
+

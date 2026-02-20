@@ -121,6 +121,10 @@ namespace ScorpioEditor
         /// <param name="labelWidth">标签宽度覆盖值（≤ 0 表示使用系统默认）。</param>
         public static IFloatComponentDrawer Create(ComponentConfig config, float labelWidth)
         {
+            // 防御性处理：config 为 null 时降级为默认 FloatComponentDrawer
+            if (config == null)
+                return new FloatComponentDrawer();
+
             switch (config.DrawType)
             {
                 case FloatDrawType.Slider:

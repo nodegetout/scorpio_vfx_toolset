@@ -55,11 +55,28 @@ namespace ScorpioEditor
             return Mathf.Max(textHeight, 38f);
         }
 
+        // ── 动态控件高度 ──────────────────────────────────────────────
+
+        /// <summary>
+        /// 动态计算 <see cref="EditorGUI.Vector2Field"/> 所需高度。
+        /// 等于两倍 singleLineHeight + standardVerticalSpacing，随 DPI 自适应。
+        /// </summary>
+        public static float CalcVector2FieldHeight()
+            => EditorGUIUtility.singleLineHeight * 2f + EditorGUIUtility.standardVerticalSpacing;
+
+        /// <summary>
+        /// 动态计算 <see cref="EditorGUI.Vector3Field"/> 所需高度。
+        /// 等于两倍 singleLineHeight + standardVerticalSpacing，随 DPI 自适应。
+        /// </summary>
+        public static float CalcVector3FieldHeight()
+            => EditorGUIUtility.singleLineHeight * 2f + EditorGUIUtility.standardVerticalSpacing;
+
         // ── Rect 行分配 ───────────────────────────────────────────────
 
         /// <summary>
         /// 从 <paramref name="totalRect"/> 切出第 <paramref name="lineIndex"/> 行（0-based），
         /// 并调用 <see cref="EditorGUI.IndentedRect"/> 自动处理当前缩进级别。
+        /// 适用于所有行等高（<see cref="LineHeight"/>）的场景（如 FourFloats 模式）。
         /// </summary>
         /// <param name="totalRect">MaterialPropertyDrawer.OnGUI 收到的完整区域。</param>
         /// <param name="lineIndex">行索引，从 0 开始。</param>
@@ -71,6 +88,25 @@ namespace ScorpioEditor
                 totalRect.y + lineIndex * lh,
                 totalRect.width,
                 EditorGUIUtility.singleLineHeight);
+
+            return EditorGUI.IndentedRect(raw);
+        }
+
+        /// <summary>
+        /// 从 <paramref name="totalRect"/> 按绝对 <paramref name="yOffset"/> 偏移切出指定
+        /// <paramref name="height"/> 高度的 Rect，并应用 <see cref="EditorGUI.IndentedRect"/>。
+        /// 适用于各行高度不等的场景（如 TwoVector2 / Vector3Float 模式）。
+        /// </summary>
+        /// <param name="totalRect">MaterialPropertyDrawer.OnGUI 收到的完整区域。</param>
+        /// <param name="yOffset">距 totalRect 顶部的像素偏移量。</param>
+        /// <param name="height">该行的像素高度。</param>
+        public static Rect GetRectAtOffset(Rect totalRect, float yOffset, float height)
+        {
+            var raw = new Rect(
+                totalRect.x,
+                totalRect.y + yOffset,
+                totalRect.width,
+                height);
 
             return EditorGUI.IndentedRect(raw);
         }
