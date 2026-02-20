@@ -2,17 +2,14 @@
 // 渲染管线：URP Unlit（HLSL）
 //
 // ── 属性命名约定 ─────────────────────────────────────────────────────
-//   Begin 标记属性：必须 [HideInInspector]，属性名前缀决定其角色。
-//     _ModuleBegin_Xxx    → 父模块开始
-//     _SubModuleBegin_Xxx → 子模块开始
-//
 //   模块标题写在属性的 displayName 中，支持中文及任意字符：
 //     [HideInInspector][ModuleBegin] _ModuleBegin_Xxx ("模块标题", Float) = 0
 //
 //   开关参数写在 Drawer 括号里：
-//     [ModuleBegin]                   → 无开关
-//     [ModuleBegin(_KEYWORD_ON)]       → keyword 开关
-//     [ModuleBegin(_PropName, prop)]   → property 开关
+//     [ModuleBegin]                 → 无开关
+//     [ModuleBegin(_KEYWORD_ON)]    → keyword 开关
+//     [ModuleBegin(prop)]           → property 开关，Begin 属性自身的 floatValue 即为开关值
+//                                     无需额外的开关属性，属性名可自定义（如 _DissolveOn）
 //
 //   End 标记直接附在模块最后一个 body 属性上，无需额外占位属性：
 //     [ModuleEnd]           → 结束父模块
@@ -45,16 +42,15 @@ Shader "Scorpio/Examples/ModuleGUI_Example"
             [ModuleEnd(sub, end)] _FresnelBias ("菲涅尔偏移", Range(0,1)) = 0.1
 
         // ══════════════════════════════════════════════════════════════
-        // 父模块【溶解】— Property 开关，自动取 body 第一个属性（_DissolveOn）
+        // 父模块【溶解】— Property 开关，Begin 属性 _DissolveOn 自身即为开关
+        // floatValue > 0.5 时模块开启，无需额外的开关属性
         // ══════════════════════════════════════════════════════════════
-        [HideInInspector][ModuleBegin(prop)] _ModuleBegin_Dissolve ("溶解", Float) = 0
+        [HideInInspector][ModuleBegin(prop)] _DissolveOn ("溶解", Float) = 0
 
-            // 开关属性本身加 HideInInspector，由 Header Toggle 控制
-            [HideInInspector] _DissolveOn    ("溶解开关", Float)          = 0
-            _DissolveNoiseTex ("溶解噪声图",  2D)                         = "white" {}
-            _DissolveAmount   ("溶解程度",    Range(0,1))                 = 0.5
-            _DissolveBias     ("溶解偏移",    Range(-0.5,0.5))            = 0.0
-            _DissolveEdgeColor("边缘颜色",    Color)                      = (1,0.3,0,1)
+            _DissolveNoiseTex ("溶解噪声图",  2D)            = "white" {}
+            _DissolveAmount   ("溶解程度",    Range(0,1))    = 0.5
+            _DissolveBias     ("溶解偏移",    Range(-0.5,0.5))= 0.0
+            _DissolveEdgeColor("边缘颜色",    Color)         = (1,0.3,0,1)
 
         // 最后一个属性，结束父模块
         [ModuleEnd] _DissolveEdgeWidth ("边缘宽度", Range(0.01,0.5)) = 0.1

@@ -27,10 +27,6 @@ namespace ScorpioEditor
     /// </summary>
     public class ScorpioModuleShaderGUIBase : ShaderGUI
     {
-        // ── 属性名前缀约定（用于识别 Begin 标记属性）─────────────────
-        private const string PrefixModuleBegin    = "_ModuleBegin_";
-        private const string PrefixSubModuleBegin = "_SubModuleBegin_";
-
         // ── EditorPrefs key 前缀 ──────────────────────────────────────
         private const string EditorPrefsPrefix = "ScorpioModuleGUI_";
 
@@ -40,14 +36,10 @@ namespace ScorpioEditor
             Material material = materialEditor.target as Material;
             Undo.RecordObject(material, "修改材质属性");
 
-            // 第一遍：触发所有 Begin 属性的 GetPropertyHeight，
-            // 让 Drawer 构造函数注册信息写入 DrawerInfoRegistry。
-            // （Unity 在 ShaderProperty 内部会调用 Drawer.GetPropertyHeight）
+            // 第一遍：触发所有属性的 GetPropertyHeight，让所有 Begin / End Drawer
+            // 完成向 DrawerInfoRegistry 的注册（无论属性名前缀如何）。
             foreach (var p in properties)
-            {
-                if (p.name.StartsWith(PrefixModuleBegin) || p.name.StartsWith(PrefixSubModuleBegin))
-                    materialEditor.GetPropertyHeight(p);
-            }
+                materialEditor.GetPropertyHeight(p);
 
             var frameData = CollectModules(properties, material);
             DrawGUI(materialEditor, material, frameData);
@@ -67,28 +59,25 @@ namespace ScorpioEditor
             {
                 string name = prop.name;
 
-                // ── Begin 标记属性（按名称前缀识别，height=0 不绘制）──
-                if (name.StartsWith(PrefixModuleBegin) || name.StartsWith(PrefixSubModuleBegin))
-                {
-                    // 尝试从注册表读取 Drawer 参数
-                    if (!DrawerInfoRegistry.TryGet(name, out var info))
-                    {
-                        Debug.LogWarning(
-                            $"[ScorpioModuleShaderGUI] 属性 '{name}' 缺少 ModuleBegin/SubModuleBegin Drawer，" +
-                            $"请检查 Shader: {material.shader.name}");
-                        continue;
-                    }
+                // ── 查注册表判断是否为 Begin / End 标记属性 ───────────
+                DrawerInfoRegistry.TryGet(name, out var drawerInfo);
+                bool isBegin = drawerInfo != null && !drawerInfo.IsEnd;
+                bool isEnd   = drawerInfo != null &&  drawerInfo.IsEnd;
 
-                    if (info.Level == ModuleLevel.Parent)
+                // ── Begin 标记属性（height=0，不进入 body）────────────
+                if (isBegin)
+                {
+                    if (drawerInfo.Level == ModuleLevel.Parent)
                     {
                         modulesStarted  = true;
                         modulesFinished = false;
                         currentParent   = new ModuleEntry
                         {
-                            Level        = ModuleLevel.Parent,
-                            Title        = info.Title,
-                            ToggleType   = info.ToggleType,
-                            ToggleTarget = info.ToggleTarget
+                            Level             = ModuleLevel.Parent,
+                            Title             = drawerInfo.Title,
+                            ToggleType        = drawerInfo.ToggleType,
+                            ToggleTarget      = drawerInfo.ToggleTarget,
+                            BeginPropertyName = name
                         };
                         currentChild = null;
                         data.Modules.Add(currentParent);
@@ -102,12 +91,13 @@ namespace ScorpioEditor
                                 $"请检查 Shader: {material.shader.name}");
                             continue;
                         }
-                        currentChild   = new ModuleEntry
+                        currentChild = new ModuleEntry
                         {
-                            Level        = ModuleLevel.Child,
-                            Title        = info.Title,
-                            ToggleType   = info.ToggleType,
-                            ToggleTarget = info.ToggleTarget
+                            Level             = ModuleLevel.Child,
+                            Title             = drawerInfo.Title,
+                            ToggleType        = drawerInfo.ToggleType,
+                            ToggleTarget      = drawerInfo.ToggleTarget,
+                            BeginPropertyName = name
                         };
                         data.Modules.Add(currentChild);
                     }
@@ -125,20 +115,18 @@ namespace ScorpioEditor
                 }
                 else
                 {
-                    // 状态机保证：modulesStarted=true 且 modulesFinished=false 时，currentParent 非空
                     Debug.Assert(currentParent != null,
                         $"[ScorpioModuleShaderGUI] 内部状态异常：属性 '{name}' 在模块内但 currentParent 为空。");
 
-                    // 加入当前模块 body
                     if (currentChild != null)
                         currentChild.BodyProperties.Add(prop);
                     else
                         currentParent.BodyProperties.Add(prop);
 
                     // 检查是否带有 ModuleEnd Drawer
-                    if (DrawerInfoRegistry.TryGet(name, out var endInfo) && endInfo.IsEnd)
+                    if (isEnd)
                     {
-                        switch (endInfo.EndScope)
+                        switch (drawerInfo.EndScope)
                         {
                             case ModuleEndScope.Child:
                                 if (currentChild == null)
@@ -216,12 +204,10 @@ namespace ScorpioEditor
             bool isExpanded = GetFoldoutState(material, module.Title);
             bool hasToggle  = module.ToggleType != ModuleToggleType.None;
 
-            // Property 模式且 ToggleTarget 为空：自动取 body 第一个属性作为开关属性
+            // Property 模式且 ToggleTarget 为空：自动用 Begin 标记属性自身作为开关属性
             string toggleTarget = module.ToggleTarget;
-            if (module.ToggleType == ModuleToggleType.Property
-                && string.IsNullOrEmpty(toggleTarget)
-                && module.BodyProperties.Count > 0)
-                toggleTarget = module.BodyProperties[0].name;
+            if (module.ToggleType == ModuleToggleType.Property && string.IsNullOrEmpty(toggleTarget))
+                toggleTarget = module.BeginPropertyName;
 
             bool isEnabled = GetToggleState(material, module.ToggleType, toggleTarget);
 

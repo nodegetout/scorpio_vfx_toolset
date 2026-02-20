@@ -63,7 +63,8 @@ namespace ScorpioEditor
         public ModuleLevel            Level;
         public string                 Title;
         public ModuleToggleType       ToggleType;
-        public string                 ToggleTarget;
+        public string                 ToggleTarget;       // keyword 名 或 显式指定的 property 名
+        public string                 BeginPropertyName;  // Begin 标记属性自身的名称，用于 prop 模式自动回落
         public List<MaterialProperty> BodyProperties = new List<MaterialProperty>();
     }
 
