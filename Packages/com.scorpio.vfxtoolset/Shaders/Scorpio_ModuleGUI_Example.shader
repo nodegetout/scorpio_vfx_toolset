@@ -3,7 +3,7 @@
 //
 // ── 属性命名约定 ─────────────────────────────────────────────────────
 //   模块标题写在属性的 displayName 中，支持中文及任意字符：
-//     [HideInInspector][ModuleBegin] _ModuleBegin_Xxx ("模块标题", Float) = 0
+//     [ModuleBegin] _ModuleBegin_Xxx ("模块标题", Float) = 0
 //
 //   开关参数写在 Drawer 括号里：
 //     [ModuleBegin]                 → 无开关
@@ -27,13 +27,13 @@ Shader "Scorpio/Examples/ModuleGUI_Example"
         // 父模块【基础颜色】— Keyword 开关 _BASE_COLOR_ON
         // 标题写在 displayName，括号只传开关参数，支持中文
         // ══════════════════════════════════════════════════════════════
-        [HideInInspector][ModuleBegin(_BASE_COLOR_ON)] _ModuleBegin_BaseColor ("基础颜色", Float) = 0
+        [ModuleBegin(_BASE_COLOR_ON)] _ModuleBegin_BaseColor ("基础颜色", Float) = 0
 
             _BaseColor     ("颜色叠加", Color)      = (1,1,1,1)
             _BaseIntensity ("颜色强度", Range(0,2)) = 1.0
 
             // ── 子模块【菲涅尔】— Keyword 开关 _FRESNEL_ON ──────────
-            [HideInInspector][SubModuleBegin(_FRESNEL_ON)] _SubModuleBegin_Fresnel ("菲涅尔", Float) = 0
+            [SubModuleBegin(_FRESNEL_ON)] _SubModuleBegin_Fresnel ("菲涅尔", Float) = 0
 
                 _FresnelColor ("菲涅尔颜色", Color)        = (1,1,1,1)
                 _FresnelPower ("菲涅尔强度", Range(0.1,5)) = 1.0
@@ -45,7 +45,7 @@ Shader "Scorpio/Examples/ModuleGUI_Example"
         // 父模块【溶解】— Property 开关，Begin 属性 _DissolveOn 自身即为开关
         // floatValue > 0.5 时模块开启，无需额外的开关属性
         // ══════════════════════════════════════════════════════════════
-        [HideInInspector][ModuleBegin(prop)] _DissolveOn ("溶解", Float) = 0
+        [ModuleBegin(prop)] _DissolveOn ("溶解", Float) = 0
 
             _DissolveNoiseTex ("溶解噪声图",  2D)            = "white" {}
             _DissolveAmount   ("溶解程度",    Range(0,1))    = 0.5
