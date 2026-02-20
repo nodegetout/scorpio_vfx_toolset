@@ -4,29 +4,71 @@ using UnityEngine;
 namespace ScorpioEditor
 {
     /// <summary>
-    /// 标记父模块开始。
-    /// 用法一（无开关）：   [ModuleBegin(Title)]
-    /// 用法二（keyword 开关）：[ModuleBegin(Title, _KEYWORD_ON)]
-    /// 用法三（property 开关）：[ModuleBegin(Title, _PropertyName, prop)]
+    /// 标记父模块开始，构造参数写入 DrawerInfoRegistry 供 ScorpioModuleShaderGUIBase 读取。
     ///
-    /// 约定：附加该 Drawer 的 Float 属性名必须以 _ModuleBegin_ 开头，并加 [HideInInspector]。
+    /// 用法（三种开关模式）：
+    ///   [ModuleBegin(Title)]                         → 无开关
+    ///   [ModuleBegin(Title, _KEYWORD_ON)]             → keyword 开关（默认）
+    ///   [ModuleBegin(Title, _PropName, prop)]         → property 开关
+    ///
+    /// 附加在任意 [HideInInspector] Float 属性上，属性名以 _ModuleBegin_ 开头。
     /// </summary>
     public class ModuleBeginDrawer : MaterialPropertyDrawer
     {
-        // 供 ScorpioModuleShaderGUIBase 读取的编码字符串，存储在 displayName 中
-        // 格式：__ModuleBegin__|Title|ToggleType|ToggleTarget
-        // 该字段写入属性的 displayName 是通过 shader 里的 displayName 约定传递的，
-        // 实际解析在 ScorpioModuleShaderGUIBase 里完成，Drawer 本身只需保证高度为 0。
+        // 无开关：[ModuleBegin(Title)]
+        public ModuleBeginDrawer(string title)
+            : this(title, null, null) { }
+
+        // keyword 开关：[ModuleBegin(Title, _KEYWORD_ON)]
+        public ModuleBeginDrawer(string title, string toggleTarget)
+            : this(title, toggleTarget, null) { }
+
+        // property 开关：[ModuleBegin(Title, _PropName, prop)]
+        public ModuleBeginDrawer(string title, string toggleTarget, string toggleMode)
+        {
+            // MaterialPropertyDrawer 构造时拿不到 propertyName，
+            // 注册延迟到第一次 OnGUI / GetPropertyHeight，届时通过 prop.name 取得。
+            _pendingTitle      = title;
+            _pendingTarget     = toggleTarget ?? string.Empty;
+            _pendingMode       = toggleMode;
+        }
+
+        private readonly string _pendingTitle;
+        private readonly string _pendingTarget;
+        private readonly string _pendingMode;   // null / "prop"
+
+        private void EnsureRegistered(string propName)
+        {
+            if (DrawerInfoRegistry.TryGet(propName, out _)) return;
+
+            ModuleToggleType toggleType;
+            if (string.IsNullOrEmpty(_pendingTarget))
+                toggleType = ModuleToggleType.None;
+            else if (_pendingMode == "prop")
+                toggleType = ModuleToggleType.Property;
+            else
+                toggleType = ModuleToggleType.Keyword;
+
+            DrawerInfoRegistry.Register(propName, new DrawerInfo
+            {
+                Level        = ModuleLevel.Parent,
+                Title        = _pendingTitle,
+                ToggleType   = toggleType,
+                ToggleTarget = _pendingTarget,
+                IsEnd        = false
+            });
+        }
 
         public override float GetPropertyHeight(MaterialProperty prop, string label, MaterialEditor editor)
         {
+            EnsureRegistered(prop.name);
             return 0f;
         }
 
         public override void OnGUI(Rect position, MaterialProperty prop, GUIContent label, MaterialEditor editor)
         {
-            // 不绘制任何内容，模块标记属性完全隐藏
+            EnsureRegistered(prop.name);
+            // 不绘制任何内容
         }
     }
 }
-
