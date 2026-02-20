@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,12 +11,12 @@ namespace ScorpioEditor
     ///
     /// 父模块开始（附在 [HideInInspector] Float 属性，属性名以 _ModuleBegin_ 开头）：
     ///   模块标题写在属性的 displayName 中，支持中文及任意字符。
-    ///   [HideInInspector][ModuleBegin]                 _ModuleBegin_Xxx ("标题", Float) = 0
-    ///   [HideInInspector][ModuleBegin(_KEYWORD_ON)]    _ModuleBegin_Xxx ("标题", Float) = 0
+    ///   [HideInInspector][ModuleBegin]                  _ModuleBegin_Xxx ("标题", Float) = 0
+    ///   [HideInInspector][ModuleBegin(_KEYWORD_ON)]     _ModuleBegin_Xxx ("标题", Float) = 0
     ///   [HideInInspector][ModuleBegin(_PropName, prop)] _ModuleBegin_Xxx ("标题", Float) = 0
     ///
     /// 子模块开始（属性名以 _SubModuleBegin_ 开头，用法同上）：
-    ///   [HideInInspector][SubModuleBegin(_KEYWORD_ON)] _SubModuleBegin_Xxx ("标题", Float) = 0
+    ///   [HideInInspector][SubModuleBegin(_KEYWORD_ON)]  _SubModuleBegin_Xxx ("标题", Float) = 0
     ///
     /// 模块结束（直接附在最后一个 body 属性上，无需额外占位属性）：
     ///   [ModuleEnd]           → 结束父模块
@@ -30,10 +31,12 @@ namespace ScorpioEditor
         // ── EditorPrefs key 前缀 ──────────────────────────────────────
         private const string EditorPrefsPrefix = "ScorpioModuleGUI_";
 
-        // ─────────────────────────────────────────────────────────────
+        // ── 入口 ──────────────────────────────────────────────────────
         public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
         {
             Material material = materialEditor.target as Material;
+            // TODO: Undo.RecordObject 在 OnGUI 每帧调用，对 MaterialEditor 属于反模式，
+            //       Unity MaterialEditor 有自己的 Undo 机制，后续考虑移入实际值变更处。
             Undo.RecordObject(material, "修改材质属性");
 
             // 第一遍：触发所有属性的 GetPropertyHeight，让所有 Begin / End Drawer
@@ -46,8 +49,7 @@ namespace ScorpioEditor
         }
 
         // ── 解析阶段 ──────────────────────────────────────────────────
-        private static ModuleShaderGUIFrameData CollectModules(
-            MaterialProperty[] properties, Material material)
+        private static ModuleShaderGUIFrameData CollectModules(MaterialProperty[] properties, Material material)
         {
             var data             = new ModuleShaderGUIFrameData();
             bool modulesStarted  = false;
@@ -59,7 +61,9 @@ namespace ScorpioEditor
             {
                 string name = prop.name;
 
-                // ── 查注册表判断是否为 Begin / End 标记属性 ───────────
+                // 查注册表判断是否为 Begin / End 标记属性
+                // TODO: DrawerInfoRegistry 使用全局静态字典，多材质共享同名属性时会互相覆盖，
+                //       后续需引入 Shader/Material 命名空间隔离机制。
                 DrawerInfoRegistry.TryGet(name, out var drawerInfo);
                 bool isBegin = drawerInfo != null && !drawerInfo.IsEnd;
                 bool isEnd   = drawerInfo != null &&  drawerInfo.IsEnd;
@@ -71,34 +75,18 @@ namespace ScorpioEditor
                     {
                         modulesStarted  = true;
                         modulesFinished = false;
-                        currentParent   = new ModuleEntry
-                        {
-                            Level             = ModuleLevel.Parent,
-                            Title             = drawerInfo.Title,
-                            ToggleType        = drawerInfo.ToggleType,
-                            ToggleTarget      = drawerInfo.ToggleTarget,
-                            BeginPropertyName = name
-                        };
-                        currentChild = null;
+                        currentParent   = CreateModuleEntry(drawerInfo, ModuleLevel.Parent, name);
+                        currentChild    = null;
                         data.Modules.Add(currentParent);
                     }
                     else // Child
                     {
                         if (currentParent == null)
                         {
-                            Debug.LogWarning(
-                                $"[ScorpioModuleShaderGUI] SubModuleBegin '{name}' 没有对应的父模块，" +
-                                $"请检查 Shader: {material.shader.name}");
+                            WarnMissingModule($"SubModuleBegin '{name}' 没有对应的父模块，请检查", material);
                             continue;
                         }
-                        currentChild = new ModuleEntry
-                        {
-                            Level             = ModuleLevel.Child,
-                            Title             = drawerInfo.Title,
-                            ToggleType        = drawerInfo.ToggleType,
-                            ToggleTarget      = drawerInfo.ToggleTarget,
-                            BeginPropertyName = name
-                        };
+                        currentChild = CreateModuleEntry(drawerInfo, ModuleLevel.Child, name);
                         data.Modules.Add(currentChild);
                     }
                     continue;
@@ -118,45 +106,46 @@ namespace ScorpioEditor
                     Debug.Assert(currentParent != null,
                         $"[ScorpioModuleShaderGUI] 内部状态异常：属性 '{name}' 在模块内但 currentParent 为空。");
 
-                    if (currentChild != null)
-                        currentChild.BodyProperties.Add(prop);
-                    else
-                        currentParent.BodyProperties.Add(prop);
+                    var target = currentChild ?? currentParent;
+                    target.BodyProperties.Add(prop);
 
-                    // 检查是否带有 ModuleEnd Drawer
                     if (isEnd)
-                    {
-                        switch (drawerInfo.EndScope)
-                        {
-                            case ModuleEndScope.Child:
-                                if (currentChild == null)
-                                    Debug.LogWarning(
-                                        $"[ScorpioModuleShaderGUI] [ModuleEnd(sub)] 在 '{name}' 上但没有当前子模块。" +
-                                        $"Shader: {material.shader.name}");
-                                currentChild = null;
-                                break;
-
-                            case ModuleEndScope.ChildAndParent:
-                                if (currentChild == null)
-                                    Debug.LogWarning(
-                                        $"[ScorpioModuleShaderGUI] [ModuleEnd(sub,end)] 在 '{name}' 上但没有当前子模块。" +
-                                        $"Shader: {material.shader.name}");
-                                currentChild    = null;
-                                currentParent   = null;
-                                modulesFinished = true;
-                                break;
-
-                            default: // ModuleEndScope.Parent
-                                currentChild    = null;
-                                currentParent   = null;
-                                modulesFinished = true;
-                                break;
-                        }
-                    }
+                        HandleModuleEnd(drawerInfo, name, material, ref currentChild, ref currentParent, ref modulesFinished);
                 }
             }
 
             return data;
+        }
+
+        /// <summary>
+        /// 处理 ModuleEnd 标记，更新当前父/子模块指针和 modulesFinished 状态。
+        /// </summary>
+        private static void HandleModuleEnd(
+            DrawerInfo drawerInfo, string propName, Material material,
+            ref ModuleEntry currentChild, ref ModuleEntry currentParent, ref bool modulesFinished)
+        {
+            switch (drawerInfo.EndScope)
+            {
+                case ModuleEndScope.Child:
+                    if (currentChild == null)
+                        WarnMissingModule($"[ModuleEnd(sub)] 在 '{propName}' 上但没有当前子模块", material);
+                    currentChild = null;
+                    break;
+
+                case ModuleEndScope.ChildAndParent:
+                    if (currentChild == null)
+                        WarnMissingModule($"[ModuleEnd(sub,end)] 在 '{propName}' 上但没有当前子模块", material);
+                    currentChild    = null;
+                    currentParent   = null;
+                    modulesFinished = true;
+                    break;
+
+                default: // ModuleEndScope.Parent
+                    currentChild    = null;
+                    currentParent   = null;
+                    modulesFinished = true;
+                    break;
+            }
         }
 
         // ── 绘制阶段 ──────────────────────────────────────────────────
@@ -170,19 +159,8 @@ namespace ScorpioEditor
             {
                 var module = data.Modules[i];
 
-                if (module.Level == ModuleLevel.Child)
-                {
-                    bool parentExpanded = true;
-                    for (int j = i - 1; j >= 0; j--)
-                    {
-                        if (data.Modules[j].Level == ModuleLevel.Parent)
-                        {
-                            parentExpanded = GetFoldoutState(material, data.Modules[j].Title);
-                            break;
-                        }
-                    }
-                    if (!parentExpanded) continue;
-                }
+                if (module.Level == ModuleLevel.Child && !FindParentExpanded(data.Modules, i, material))
+                    continue;
 
                 DrawModule(materialEditor, material, module);
             }
@@ -204,12 +182,8 @@ namespace ScorpioEditor
             bool isExpanded = GetFoldoutState(material, module.Title);
             bool hasToggle  = module.ToggleType != ModuleToggleType.None;
 
-            // Property 模式且 ToggleTarget 为空：自动用 Begin 标记属性自身作为开关属性
-            string toggleTarget = module.ToggleTarget;
-            if (module.ToggleType == ModuleToggleType.Property && string.IsNullOrEmpty(toggleTarget))
-                toggleTarget = module.BeginPropertyName;
-
-            bool isEnabled = GetToggleState(material, module.ToggleType, toggleTarget);
+            string toggleTarget = ResolveToggleTarget(module);
+            bool   isEnabled    = GetToggleState(material, module.ToggleType, toggleTarget);
 
             bool newExpanded = DrawModuleHeader(module.Title, isChild, isExpanded, isEnabled, hasToggle,
                 out bool newEnabled);
@@ -217,26 +191,33 @@ namespace ScorpioEditor
             if (newExpanded != isExpanded)
                 SetFoldoutState(material, module.Title, newExpanded);
 
-            if (newEnabled != isEnabled && hasToggle)
+            if (hasToggle && newEnabled != isEnabled)
                 SetToggleState(material, module.ToggleType, toggleTarget, newEnabled);
 
             if (newExpanded && module.BodyProperties.Count > 0)
-            {
-                EditorGUI.indentLevel += isChild ? 2 : 1;
-                foreach (var prop in module.BodyProperties)
-                {
-                    // 跳过 property 开关属性本身（由 Header Toggle 控制）
-                    if (module.ToggleType == ModuleToggleType.Property &&
-                        prop.name == toggleTarget)
-                        continue;
+                DrawModuleBody(materialEditor, module, toggleTarget, isChild);
+        }
 
-                    materialEditor.ShaderProperty(prop, prop.displayName);
-                }
-                EditorGUI.indentLevel -= isChild ? 2 : 1;
+        // ── 绘制模块 body 属性 ────────────────────────────────────────
+        private static void DrawModuleBody(
+            MaterialEditor editor, ModuleEntry module, string toggleTarget, bool isChild)
+        {
+            EditorGUI.indentLevel += isChild ? 2 : 1;
+
+            foreach (var prop in module.BodyProperties)
+            {
+                // 跳过 property 开关属性本身（由 Header Toggle 控制）
+                if (module.ToggleType == ModuleToggleType.Property && prop.name == toggleTarget)
+                    continue;
+
+                editor.ShaderProperty(prop, prop.displayName);
             }
+
+            EditorGUI.indentLevel -= isChild ? 2 : 1;
         }
 
         // ── 绘制模块标题栏（ShurikenModuleTitle 风格）────────────────
+        // TODO: 参数过多（6 个），后续考虑引入 ModuleHeaderContext 值结构体压缩参数列表。
         private static bool DrawModuleHeader(string title, bool isChild,
             bool isExpanded, bool isEnabled, bool hasToggle, out bool newEnabled)
         {
@@ -309,8 +290,7 @@ namespace ScorpioEditor
 
                 case ModuleToggleType.Property:
                     if (string.IsNullOrEmpty(toggleTarget)) return false;
-                    var prop = FindProperty(toggleTarget,
-                        MaterialEditor.GetMaterialProperties(new Object[] { material }), false);
+                    var prop = FindProperty(toggleTarget, GetMaterialProps(material), false);
                     return prop != null && prop.floatValue > 0.5f;
 
                 default:
@@ -330,8 +310,7 @@ namespace ScorpioEditor
 
                 case ModuleToggleType.Property:
                     if (string.IsNullOrEmpty(toggleTarget)) break;
-                    var prop = FindProperty(toggleTarget,
-                        MaterialEditor.GetMaterialProperties(new Object[] { material }), false);
+                    var prop = FindProperty(toggleTarget, GetMaterialProps(material), false);
                     if (prop != null)
                         prop.floatValue = value ? 1f : 0f;
                     break;
@@ -339,6 +318,58 @@ namespace ScorpioEditor
 
             EditorUtility.SetDirty(material);
         }
+
+        // ── 辅助方法 ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// 从 DrawerInfo 创建 ModuleEntry，统一初始化逻辑，消除父/子模块的重复对象初始化块。
+        /// </summary>
+        private static ModuleEntry CreateModuleEntry(DrawerInfo info, ModuleLevel level, string propName)
+            => new ModuleEntry
+            {
+                Level             = level,
+                Title             = info.Title,
+                ToggleType        = info.ToggleType,
+                ToggleTarget      = info.ToggleTarget,
+                BeginPropertyName = propName
+            };
+
+        /// <summary>
+        /// Property 模式且 ToggleTarget 为空时，自动回落到 BeginPropertyName 作为开关属性。
+        /// </summary>
+        private static string ResolveToggleTarget(ModuleEntry module)
+        {
+            if (module.ToggleType == ModuleToggleType.Property && string.IsNullOrEmpty(module.ToggleTarget))
+                return module.BeginPropertyName;
+            return module.ToggleTarget;
+        }
+
+        /// <summary>
+        /// 向前遍历，查找子模块对应的父模块是否处于展开状态。
+        /// 若找不到父模块（异常情况），默认返回 true 保证子模块正常显示。
+        /// </summary>
+        private static bool FindParentExpanded(List<ModuleEntry> modules, int childIndex, Material material)
+        {
+            for (int j = childIndex - 1; j >= 0; j--)
+            {
+                if (modules[j].Level == ModuleLevel.Parent)
+                    return GetFoldoutState(material, modules[j].Title);
+            }
+            return true; // 无父模块时默认展开
+        }
+
+        /// <summary>
+        /// 封装 MaterialEditor.GetMaterialProperties，统一 new Object[] 的分配，
+        /// 供 GetToggleState / SetToggleState 共用。
+        /// </summary>
+        private static MaterialProperty[] GetMaterialProps(Material material)
+            => MaterialEditor.GetMaterialProperties(new Object[] { material });
+
+        /// <summary>
+        /// 统一输出模块解析警告，自动附加 Shader 名称后缀。
+        /// </summary>
+        private static void WarnMissingModule(string message, Material material)
+            => Debug.LogWarning($"[ScorpioModuleShaderGUI] {message}。Shader: {material.shader.name}");
     }
 }
 
