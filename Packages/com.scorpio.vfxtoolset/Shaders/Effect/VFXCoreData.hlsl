@@ -4,17 +4,17 @@
 struct Attributes
 {
     float4 positionOS  : POSITION;
-    float2 uv0         : TEXCOORD0;
+    half2  uv0         : TEXCOORD0;
     #if defined(VERTEX_REQUIRE_VERTEXCOLOR)
     half4  vertexColor : COLOR;
     #endif
     #if defined(VERTEX_REQUIRE_UV1)
-    float4 uv1         : TEXCOORD1;
+    half4 uv1         : TEXCOORD1;
     #endif
     #if defined(VERTEX_REQUIRE_UV2)
-    float4 uv2         : TEXCOORD2;
+    half4 uv2         : TEXCOORD2;
     #endif
-    #if defined(REQUIRE_NORMAL)
+    #if defined(VERTEX_REQUIRE_NORMAL)
     half3  normalOS    : NORMAL;
     #endif
 };
@@ -22,21 +22,21 @@ struct Attributes
 struct Varyings
 {
     float4 positionHCS : SV_POSITION;
-    float4 uv0         : TEXCOORD0;
+    half4  uv0         : TEXCOORD0;
     
     #if defined(FRAGMENT_REQUIRE_UV1)
-    float4 uv1         : TEXCOORD1;
+    half4  uv1         : TEXCOORD1;
     #endif
     
     #if defined(FRAGMENT_REQUIRE_UV2)
-    float4 uv2         : TEXCOORD2;
+    half4  uv2         : TEXCOORD2;
     #endif
     
     #if defined(FRAGMENT_REQUIRE_VERTEXCOLOR)
     half4  vertexColor : TEXCOORD3;
     #endif
     
-    #if defined(REQUIRE_NORMAL)
+    #if defined(FRAGMENT_REQUIRE_NORMAL)
     half4  normalWS    : TEXCOORD4;
     #endif
     
@@ -48,5 +48,10 @@ struct Varyings
     float4 screenPos : TEXCOORD6;
     #endif
 };
+
+float2 GetOneHourCycledTime()
+{
+    return fmod(_Time.yy, 3600.0f);
+}
 
 #endif

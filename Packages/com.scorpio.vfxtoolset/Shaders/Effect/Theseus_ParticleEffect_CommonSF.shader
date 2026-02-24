@@ -1,4 +1,4 @@
-Shader "Theseus/VFX/ParticleEffect_Common"
+Shader "Hidden/Theseus/VFX/ParticleEffect_CommonSF"
 {
     Properties
     {
@@ -36,14 +36,14 @@ Shader "Theseus/VFX/ParticleEffect_Common"
 
 		[Space(5)]
 		[Toggle(_MIX_BASE_ON)]_MixBaseOn("开启混合贴图",Float)=0
-		_MixDiffuse("和主贴图混合的贴图", 2D) = "white" {}
+		_MixDiffuse("和主贴图混合的贴图", 2D) = "black" {}
     	[HDR]_MixTintColor("MixTintColor", Color) = (1,1,1,1)
     	[Toggle]_MixBasePolarUVOn("开启极坐标",Float)=0
 		_MixMapParams("MixMapParams", Vector) = (0, 0, 0, 1)
     	_MixBaseMapUVParams("MixBaseMapUVParams", Vector) = (0,0,1,0)
 
 		[Space(5)]
-		[Toggle] _FresnelOn("EnableFresnel", Float) = 0
+		[Toggle(_FRESNEL_ON)] _FresnelOn("EnableFresnel", Float) = 0
     	_FresnelMap("FresnelMap", 2D) = "white" {}
 		[Toggle] _FresnelMapUse2U("FresnelMapUse2U", Float) = 0
 		_FresnelParams("FresnelParams", Vector) = (0, 0, 1, 0)
@@ -79,20 +79,20 @@ Shader "Theseus/VFX/ParticleEffect_Common"
 		_VertexMotionSpeed("VertexMotionSpeed", Vector) = (0,0,0,0)
 
     	[Space(5)]
-		[Toggle]_EnablePlanarSoftParticle("开启软粒子(禁动画中K开关)", Float) = 0
+		[Toggle(_ENABLE_PLANAR_SOFT_PARTICLE)]_EnablePlanarSoftParticle("开启软粒子(禁动画中K开关)", Float) = 0
     	_ContactRange("渐变范围", Range(0.001, 1)) = 0.5
     	_HorizontalPlaneY("水平面Y值", Float) = 0
-	    
+		
 		[Space(5)]
-		[Toggle]_GradientOn("左右渐变颜色开关(禁动画中K开关)",Float) = 0
+		[Toggle(_GRADIENT_ON)]_GradientOn("左右渐变颜色开关(禁动画中K开关)",Float) = 0
 		[Toggle]_GradientSameDiffOn("左右渐变开启Diff相同UV(禁动画中K开关)",Float) = 0
 		_LeftColor("左侧渐变色",Color) = (1,1,1,1)
 		_RightColor("右侧渐变色",Color) = (1,1,1,1)
     	_GradientParams("GradientParams", Vector) = (0, 0, 1, 0)
-
+		
 		[Space(5)]
-		[Toggle]_ColourOn("色彩开关(禁动画中K开关)",Float) = 0
-    	_ColorGradingParams("ColorGradingParams", Vector) = (0, 1, 1, 0)
+		[Toggle(_COLOUR_ON)]_ColourOn("色彩开关(禁动画中K开关)",Float) = 0
+		_ColorGradingParams("ColorGradingParams", Vector) = (0, 1, 1, 0)
 		_SaturationRightColor("灰度渐变亮色",Color)=(1,1,1,1)
 		_SaturationLeftColor("灰度渐变暗色",Color)=(1,1,1,1)
 		_SaturationRightColorWeights("灰度渐变亮色权重",Range(0.5,1))=1
@@ -132,50 +132,45 @@ Shader "Theseus/VFX/ParticleEffect_Common"
             HLSLPROGRAM
             #pragma vertex   Vertex
             #pragma fragment Fragment
-            
+
+            // global keywords
 			#pragma multi_compile __ _COLOR_HDR_
 
-            // keywords
-			#pragma multi_compile_local __ _REQUIRE_CUSTOMDATA _ENABLE_SCREEN_UV
-            #pragma multi_compile_local __ _DISSOLVE_ON
-			#pragma multi_compile_local __ _MIX_BASE_ON
-			#pragma multi_compile_local __ _ENABLE_VERTEX_OFFSET
-
-            /// use uniform instead
-			//#pragma shader_feature_local _GRADIENT_ON
-			// #pragma shader_feature_local _COLOUR_ON
-			// #pragma shader_feature_local _FRESNEL_ON
-
-            // div into different shader file
-			// #pragma shader_feature_local _FLOW_MAP_ON
-			// #pragma shader_feature_local _NOISE_ON
-
-            #define _FRESNEL_ON
+            // local keywords
+			#pragma shader_feature_local _REQUIRE_CUSTOMDATA
+			#pragma shader_feature_local _ENABLE_SCREEN_UV
+			#pragma shader_feature_local _MIX_BASE_ON
+			#pragma shader_feature_local _ENABLE_VERTEX_OFFSET
+            #pragma shader_feature_local _DISSOLVE_ON
+			#pragma shader_feature_local _FRESNEL_ON
+			#pragma shader_feature_local __ _FLOW_MAP_ON _NOISE_ON
+			#pragma shader_feature_local _ENABLE_PLANAR_SOFT_PARTICLE
+			#pragma shader_feature_local _GRADIENT_ON
+			#pragma shader_feature_local _COLOUR_ON
+            
             #define VERTEX_REQUIRE_VERTEXCOLOR
             #define FRAGMENT_REQUIRE_VERTEXCOLOR
-            #define REQUIRE_POSITIONWS
+
+            #if defined(_FRESNEL_ON) | defined(_ENABLE_PLANAR_SOFT_PARTICLE)
+				#define REQUIRE_POSITIONWS
+            #endif
+            
             #define FRAGMENT_REQUIRE_UV1
             
-
+            #define VERTEX_REQUIRE_UV1
             #if defined(_REQUIRE_CUSTOMDATA)
-			    #define VERTEX_REQUIRE_UV1
 				#if defined(_DISSOLVE_ON)
 				    #define VERTEX_REQUIRE_UV2
+				    #define FRAGMENT_REQUIRE_UV2
 				#endif
-			#else
-			    #define VERTEX_REQUIRE_UV1
-			#endif
-            
-            #if defined(_DISSOLVE_ON)
-				#define FRAGMENT_REQUIRE_UV2
 			#endif
             
             #include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFXCore.hlsl"
             #include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFX_CommonInput.hlsl"
-            #include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFX_CommonObsoletePass.hlsl"
+            #include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFX_CommonShaderFeaturePass.hlsl"
             
             ENDHLSL
         }
     }
-CustomEditor "HeroShowRenderingGUI.VFX.ObsoleteCommonEffectShaderGUI"
+CustomEditor "HeroShowRenderingGUI.VFX.ShaderFeatureCommonEffectShaderGUI"
 }

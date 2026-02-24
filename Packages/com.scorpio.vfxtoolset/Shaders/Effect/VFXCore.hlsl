@@ -2,11 +2,11 @@
 #define _VFX_CORE_
 
 // core
-#include "../ShaderLibrary/Core.hlsl"
+#include "Packages/com.scorpio.vfxtoolset/Shaders/ShaderLibrary/Core.hlsl"
 
 // vfx pipeline includes
-#include "./VFXGraphicsSettingMicro.hlsl"
-#include "./VFXCoreData.hlsl"
-#include "./VFXCoreUtils.hlsl"
+#include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFXGraphicsSettingMicro.hlsl"
+#include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFXCoreData.hlsl"
+#include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFXCoreUtils.hlsl"
 
 #endif

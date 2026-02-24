@@ -1,4 +1,4 @@
-Shader "Theseus/VFX/ParticleEffect_Common"
+Shader "Theseus/VFX/ParticleEffect_CommonDistortion"
 {
     Properties
     {
@@ -11,7 +11,7 @@ Shader "Theseus/VFX/ParticleEffect_Common"
 		[Header(CustomData ... coord1.xy__DiffUV ... coord1.zw__Mask ... coord2.xy__DissolveInstensity  ... coord2.zw__DissolveUV)]
     	[Space(10)]
     	[Toggle(_REQUIRE_CUSTOMDATA)]_RequireCustomData("开启CustomData", Float) = 0
-    	[Toggle(_ENABLE_SCREEN_UV)]_EnableScreenUV("切换屏幕UV", Float) = 0
+    	[Toggle]_EnableScreenUV("切换屏幕UV", Float) = 0
 	    
     	[Space(5)]
 		[MainTexture]_BaseMap("主贴图", 2D) = "white" {}
@@ -56,13 +56,13 @@ Shader "Theseus/VFX/ParticleEffect_Common"
     	_DissolveEdgeParams("DissolveEdgeParams", Vector) = (1, 0.001, 0, 1)
 		[HDR]_DissolveColor("溶解边缘_颜色",Color) = (1,1,1,1)
     	
-    	[Space(5)]
-    	[Toggle(_FLOW_MAP_ON)] _FlowMapOn("EnableFlowMap", Float) = 0
-		_FlowMap("FlowMap", 2D) = "white" {}
-		_FlowMapParams("FlowMapParams", Vector) = (0.5, 1, 0, 0)
+//    	[Space(5)]
+//    	[Toggle(_FLOW_MAP_ON)] _FlowMapOn("EnableFlowMap", Float) = 0
+//		_FlowMap("FlowMap", 2D) = "white" {}
+//		_FlowMapParams("FlowMapParams", Vector) = (0.5, 1, 0, 0)
 		
 		[Space(5)]
-    	[Toggle(_NOISE_ON)] _NoiseOn("EnableNoise", Float) = 0
+//    	[Toggle(_NOISE_ON)] _NoiseOn("EnableNoise", Float) = 0
 		[Toggle]_NoiseUnEffectDiff("Noise不影响主贴图",Float) = 0
     	[Toggle] _DualDirectionNoise("开启双层Noise效果(禁动画中K开关)", Float) = 0
     	_NoiseTex1("Layer1 Noise", 2D) = "black" {}
@@ -141,7 +141,7 @@ Shader "Theseus/VFX/ParticleEffect_Common"
 			#pragma multi_compile_local __ _MIX_BASE_ON
 			#pragma multi_compile_local __ _ENABLE_VERTEX_OFFSET
 
-            /// use uniform instead
+            // use uniform instead
 			//#pragma shader_feature_local _GRADIENT_ON
 			// #pragma shader_feature_local _COLOUR_ON
 			// #pragma shader_feature_local _FRESNEL_ON
@@ -151,11 +151,11 @@ Shader "Theseus/VFX/ParticleEffect_Common"
 			// #pragma shader_feature_local _NOISE_ON
 
             #define _FRESNEL_ON
+            #define _NOISE_ON
             #define VERTEX_REQUIRE_VERTEXCOLOR
             #define FRAGMENT_REQUIRE_VERTEXCOLOR
             #define REQUIRE_POSITIONWS
             #define FRAGMENT_REQUIRE_UV1
-            
 
             #if defined(_REQUIRE_CUSTOMDATA)
 			    #define VERTEX_REQUIRE_UV1
