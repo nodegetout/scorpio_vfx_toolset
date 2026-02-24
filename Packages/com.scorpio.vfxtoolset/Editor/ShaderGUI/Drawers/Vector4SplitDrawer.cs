@@ -33,6 +33,7 @@ namespace ScorpioEditor
     ///     Float              → 普通浮点输入框（默认）
     ///     Slider(min, max)   → 滑动条（支持逗号前后有空格）
     ///     Toggle             → 勾选框（0 / 1）
+    ///     Hidden             → 隐藏分量，不绘制不占高度
     ///
     ///   段数约束（段数不符触发 warning）：
     ///     FourFloats   → 4 段
@@ -102,13 +103,22 @@ namespace ScorpioEditor
 
         public override float GetPropertyHeight(MaterialProperty prop, string label, MaterialEditor editor)
         {
-            if (!TryGetValidated(prop, out _, out string errorMsg))
+            if (!TryGetValidated(prop, out ComponentConfig[] configs, out string errorMsg))
                 return DrawerRectHelper.CalcHelpBoxHeight(errorMsg);
 
             switch (_mode)
             {
                 case SplitMode.FourFloats:
-                    return DrawerRectHelper.CalcTotalHeight(4);
+                    // 动态累加：Hidden 分量不占高度
+                    var drawers = BuildDrawers(configs);
+                    float total = 0f;
+                    for (int i = 0; i < drawers.Length; i++)
+                    {
+                        float h = drawers[i].GetHeight();
+                        if (h > 0f)
+                            total += h + DrawerRectHelper.LineSpacing;
+                    }
+                    return total;
 
                 case SplitMode.TwoVector2:
                     // 两个 Vector2Field，每个占两行高度，中间加一个行间距
@@ -218,40 +228,37 @@ namespace ScorpioEditor
             Vector4 current = prop.vectorValue;
             string  name    = prop.name;
 
-            bool mixedX = IsMixedFloat(editor, name, v => v.x);
-            bool mixedY = IsMixedFloat(editor, name, v => v.y);
-            bool mixedZ = IsMixedFloat(editor, name, v => v.z);
-            bool mixedW = IsMixedFloat(editor, name, v => v.w);
+            System.Func<Vector4, float>[] selectors =
+            {
+                v => v.x, v => v.y, v => v.z, v => v.w
+            };
 
-            float newX    = current.x;
-            float newY    = current.y;
-            float newZ    = current.z;
-            float newW    = current.w;
-            bool  changed = false;
+            float[] values  = { current.x, current.y, current.z, current.w };
+            float[] newVals = { current.x, current.y, current.z, current.w };
+            bool changed = false;
+            float yOffset = 0f;
 
-            string labelX = configs[0]?.Label ?? string.Empty;
-            string labelY = configs[1]?.Label ?? string.Empty;
-            string labelZ = configs[2]?.Label ?? string.Empty;
-            string labelW = configs[3]?.Label ?? string.Empty;
+            for (int i = 0; i < 4; i++)
+            {
+                // Hidden 分量：跳过绘制，保留原值
+                if (configs[i] != null && configs[i].DrawType == FloatDrawType.Hidden)
+                    continue;
 
-            EditorGUI.BeginChangeCheck();
-            float tmpX = _cachedDrawers[0].Draw(DrawerRectHelper.GetLineRect(position, 0), labelX, current.x, mixedX, _labelWidth);
-            if (EditorGUI.EndChangeCheck()) { newX = tmpX; changed = true; }
+                bool mixed = IsMixedFloat(editor, name, selectors[i]);
+                string label = configs[i]?.Label ?? string.Empty;
 
-            EditorGUI.BeginChangeCheck();
-            float tmpY = _cachedDrawers[1].Draw(DrawerRectHelper.GetLineRect(position, 1), labelY, current.y, mixedY, _labelWidth);
-            if (EditorGUI.EndChangeCheck()) { newY = tmpY; changed = true; }
+                Rect lineRect = DrawerRectHelper.GetRectAtOffset(position, yOffset,
+                    EditorGUIUtility.singleLineHeight);
 
-            EditorGUI.BeginChangeCheck();
-            float tmpZ = _cachedDrawers[2].Draw(DrawerRectHelper.GetLineRect(position, 2), labelZ, current.z, mixedZ, _labelWidth);
-            if (EditorGUI.EndChangeCheck()) { newZ = tmpZ; changed = true; }
+                EditorGUI.BeginChangeCheck();
+                float tmp = _cachedDrawers[i].Draw(lineRect, label, values[i], mixed, _labelWidth);
+                if (EditorGUI.EndChangeCheck()) { newVals[i] = tmp; changed = true; }
 
-            EditorGUI.BeginChangeCheck();
-            float tmpW = _cachedDrawers[3].Draw(DrawerRectHelper.GetLineRect(position, 3), labelW, current.w, mixedW, _labelWidth);
-            if (EditorGUI.EndChangeCheck()) { newW = tmpW; changed = true; }
+                yOffset += DrawerRectHelper.LineHeight;
+            }
 
             if (changed)
-                SetVectorValueAll(editor, name, new Vector4(newX, newY, newZ, newW));
+                SetVectorValueAll(editor, name, new Vector4(newVals[0], newVals[1], newVals[2], newVals[3]));
         }
 
         // ── TwoVector2 ───────────────────────────────────────────────

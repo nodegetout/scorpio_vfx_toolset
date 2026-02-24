@@ -35,6 +35,9 @@ namespace ScorpioEditor
 
         /// <summary>勾选框（EditorGUI.Toggle），值为 0 或 1。</summary>
         Toggle,
+
+        /// <summary>隐藏分量，不绘制不占高度，值保持不变。</summary>
+        Hidden,
     }
 
     // ── 分量配置 ──────────────────────────────────────────────────────
@@ -74,6 +77,7 @@ namespace ScorpioEditor
     ///     Float              → 普通浮点输入框（默认）
     ///     Slider(min, max)   → 滑动条，括号内填范围，支持逗号前后有空格
     ///     Toggle             → 勾选框（0/1）
+    ///     Hidden             → 隐藏分量，不绘制不占高度
     ///
     ///   段数约束：
     ///     FourFloats   → 4 段
@@ -187,10 +191,14 @@ namespace ScorpioEditor
                 return config;
             }
 
-            // 解析 Toggle / Float（大小写不敏感）
+            // 解析 Toggle / Hidden / Float（大小写不敏感）
             if (drawTypePart.Equals("Toggle", StringComparison.OrdinalIgnoreCase))
             {
                 config.DrawType = FloatDrawType.Toggle;
+            }
+            else if (drawTypePart.Equals("Hidden", StringComparison.OrdinalIgnoreCase))
+            {
+                config.DrawType = FloatDrawType.Hidden;
             }
             else
             {

@@ -106,6 +106,20 @@ namespace ScorpioEditor
         public float GetHeight() => EditorGUIUtility.singleLineHeight;
     }
 
+    /// <summary>
+    /// 隐藏分量，不绘制任何 GUI 控件，不占高度，值保持不变。
+    /// </summary>
+    public class HiddenComponentDrawer : IFloatComponentDrawer
+    {
+        public float Draw(Rect rect, string label, float value, bool showMixed, float labelWidth)
+        {
+            // 不绘制任何内容，直接返回原值
+            return value;
+        }
+
+        public float GetHeight() => 0f;
+    }
+
     // ── 工厂 ─────────────────────────────────────────────────────────
 
     /// <summary>
@@ -132,6 +146,9 @@ namespace ScorpioEditor
 
                 case FloatDrawType.Toggle:
                     return new ToggleComponentDrawer();
+
+                case FloatDrawType.Hidden:
+                    return new HiddenComponentDrawer();
 
                 case FloatDrawType.Float:
                 default:
