@@ -107,17 +107,22 @@ half4 OutputFXColor(half4 color)
 }
 
 
-
-inline half SafeSimpleSmoothStep(half edge0, half edge1, half x)
-{
-    return saturate((x - edge0) / max(0.001, edge1 - edge0));
-}
-
 //========================= Normal　Effects Calculation  =========================
 float CalFresnelWS(half3 viewDirWS, half3 normalWS, float scale, float power)
 {
     half nDotV = dot(viewDirWS.xyz, normalWS.xyz);
     return scale * pow(max(1-nDotV,0.001), power);
+}
+
+inline float SafeSimpleSmoothStep( float x, float edge0, float edge1)
+{
+    return saturate((x - edge0) / max(0.001, edge1 - edge0));
+}
+
+half CalFallOffFresnel(half NoV, half range, half fallOff)
+{
+    half fresnel = SafeSimpleSmoothStep(NoV, range, range + fallOff);
+    return 1 - fresnel;
 }
 
 #endif

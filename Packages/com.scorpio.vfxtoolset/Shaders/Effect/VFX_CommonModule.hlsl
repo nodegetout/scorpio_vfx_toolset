@@ -1,6 +1,13 @@
 #ifndef _VFX_COMMON_MODULE_
 #define _VFX_COMMON_MODULE_
 
+half3 ApplyFallOffFresnel(half vertexNDotV, half range, half falloff, half3 fresnelColor)
+{
+    //half vertexNDotV = dot(i.normalDir.xyz, viewDirWS);
+    half3 fallOffFresnel = CalFallOffFresnel(vertexNDotV, range, falloff);
+    return fallOffFresnel * fresnelColor.rgb;
+}
+
 half4 ApplyCommonDissolve(half3 dissolveParams, half4 dissolveOutlineParams, half3 dissolveTintColor, half edgeColorBlendMode, half4 color)
 {
     // dissolveParams : x - dissolveTexValue, y - softSize, z - dissolveStep
