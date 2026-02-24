@@ -1,8 +1,6 @@
 #ifndef _VFX_COMMON_PASS_
 #define _VFX_COMMON_PASS_
 
-#include "./VFX_CommonModule.hlsl"
-
 Varyings Vertex(Attributes input)
 {
     Varyings output = (Varyings)0;

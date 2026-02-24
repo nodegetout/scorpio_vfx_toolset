@@ -167,6 +167,7 @@ Shader "Hidden/Theseus/VFX/ParticleEffect_CommonSF"
             
             #include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFXCore.hlsl"
             #include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFX_CommonInput.hlsl"
+            #include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFX_CommonModule.hlsl"
             #include "Packages/com.scorpio.vfxtoolset/Shaders/Effect/VFX_CommonShaderFeaturePass.hlsl"
             
             ENDHLSL
