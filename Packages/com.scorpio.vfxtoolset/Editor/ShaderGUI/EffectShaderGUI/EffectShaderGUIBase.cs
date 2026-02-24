@@ -1,101 +1,68 @@
 ﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
-namespace ScorpioEditor
+namespace HeroShowRenderingGUI.VFX
 {
     public abstract class EffectShaderGUIBase : ShaderGUI
     {
-        protected static Dictionary<string, ModuleData> s_moduleDataMap = new Dictionary<string, ModuleData>();
-        
-        bool bInited = false;
-        protected Dictionary<PropertyType, PropertyDrawConfigs.DrawMaterialPropertyFunc> _customPropertyFuncMap=new Dictionary<PropertyType, PropertyDrawConfigs.DrawMaterialPropertyFunc>();
-        
-        protected abstract void AppendModuleData();
-        protected abstract void AppendPropertyDrawerFunc();
+        bool _bInited = false;
+
+        protected Dictionary<PropertyType, VectorParamsDrawer> _customPropertyFuncMap =
+            new Dictionary<PropertyType, VectorParamsDrawer>();
+
+        protected virtual void AppendPropertyDrawerFunc(MaterialEditor materialEditor)
+        {
+        }
+
+        protected virtual void ChangeModuleByEffectType(MaterialEditor materialEditor)
+        {
+        }
 
         public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
         {
-            if (!bInited)
+            if (!_bInited)
             {
-                Initialize();
-                bInited = true;
+                Initialize(materialEditor);
+                _bInited = true;
             }
-            
+
             EditorGUIUtility.fieldWidth = 0;
             Material material = materialEditor.target as Material;
             Undo.RecordObject(material, "修改材质属性");
 
+            DrawWarningGUI();
             DrawModules(materialEditor, material, properties);
+
+            EditorGUILayout.Space();
+            if (SupportedRenderingFeatures.active.editableMaterialRenderQueue)
+                materialEditor.RenderQueueField();
         }
-        void Initialize()
+
+        void Initialize(MaterialEditor materialEditor)
         {
-            AppendModuleData();
-            AppendPropertyDrawerFunc();
+            AppendPropertyDrawerFunc(materialEditor);
+            ChangeModuleByEffectType(materialEditor);
             foreach (var config in _customPropertyFuncMap)
             {
-                PropertyDrawConfigs.AddPropertyDrawConfig(config.Key, config.Value);
-            }
-        }
-        
-        protected virtual void DrawModules(MaterialEditor materialEditor, Material material, MaterialProperty[] properties)
-        {
-            foreach (var moduleData in s_moduleDataMap)
-            {
-                DrawModuleWithData(materialEditor,  moduleData.Value, material, properties);
-            }
-        }
-        
-        protected void DrawModuleWithData(MaterialEditor materialEditor, ModuleData moduleData, Material material, MaterialProperty[] properties)
-        {
-            EditorGUILayout.Space();
-            moduleData.moduleFlag = Foldout(moduleData.moduleFlag, moduleData.moduleName);
-            if(moduleData.moduleFlag)
-            {
-                EditorGUI.indentLevel++;
-                int length = moduleData.propertyInfoArray.Length;
-                for (int i = 0; i < length; i++)
-                {
-                    if (material.HasProperty(moduleData.propertyInfoArray[i].propertyName))
-                    {
-                        var materialProp = moduleData.propertyInfoArray[i].materialProperty;
-                        materialProp = FindProperty(moduleData.propertyInfoArray[i].propertyName, properties);
-                        if (materialProp != null)
-                        {
-                            var drawFunc = PropertyDrawConfigs.GetPropertyDrawFunc(moduleData.propertyInfoArray[i].propertyType);
-                            drawFunc.Invoke(materialEditor, materialProp, moduleData.propertyInfoArray[i].propertyLabel);
-                        }
-                    }
-                }
-                EditorGUI.indentLevel--;
+                PropertyDrawConfigs.AddPropertyDrawConfig(config.Key, config.Value.DrawVectorParamsProperty);
             }
         }
 
-        static bool Foldout(bool display, string title)
+        protected virtual void DrawWarningGUI()
         {
-            var style = new GUIStyle("ShurikenModuleTitle");
-            style.font = new GUIStyle(EditorStyles.boldLabel).font;
-            style.border = new RectOffset(15, 7, 4, 4);
-            style.fixedHeight = 22;
-            style.contentOffset = new Vector2(20f, -2f);
-            
-            var rect = GUILayoutUtility.GetRect(16f, 22f, style);
-            GUI.Box(rect, title, style);
-            
-            var e = Event.current;
-            var toggleRect = new Rect(rect.x + 4f, rect.y + 2f, 13f, 13f);
-            if (e.type == EventType.Repaint)
-            {
-                EditorStyles.foldout.Draw(toggleRect, false, false, display, false);
-            }
+            var warningContent = "本Shader为Theseus展台特效，目前暂未开放使用";
+            EditorGUILayout.HelpBox(warningContent, MessageType.Error, true);
+        }
 
-            if (e.type == EventType.MouseDown && rect.Contains(e.mousePosition))
-            {
-                display = !display;
-                e.Use();
-            }
+        protected abstract void DrawModules(MaterialEditor materialEditor, Material material,
+            MaterialProperty[] properties);
 
-            return display;
+        protected void DrawModuleWithData(MaterialEditor materialEditor, ModuleViewBase moduleView, Material material,
+            MaterialProperty[] properties)
+        {
+            moduleView.DrawModuleDataGUI(materialEditor, properties, ref material, FindProperty);
         }
     }
 }

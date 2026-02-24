@@ -2,14 +2,14 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace ScorpioEditor
+namespace HeroShowRenderingGUI.VFX
 {
     public static class PropertyDrawConfigs
     {
         public delegate void DrawMaterialPropertyFunc(MaterialEditor materialEditor, MaterialProperty property, string label);
 
-        private static readonly Dictionary<PropertyType, DrawMaterialPropertyFunc> _drawMaterialPropertyFuncMap =
-            new Dictionary<PropertyType, DrawMaterialPropertyFunc>()
+        private static Dictionary<PropertyType, DrawMaterialPropertyFunc> s_drawMaterialPropertyFuncMap =
+            new Dictionary<PropertyType, DrawMaterialPropertyFunc>
             {
                 {
                     PropertyType.TextureScaleOffsetProperty,
@@ -18,20 +18,24 @@ namespace ScorpioEditor
                 {
                     PropertyType.ShaderProperty,
                     (editor, property, label) => editor.ShaderProperty(property, label)
+                },
+                {
+                    PropertyType.UVParamsProperty,
+                    VectorParamsDrawerConfigs.k_UVParamsDrawer.DrawVectorParamsProperty
                 }
             };
 
         public static void AddPropertyDrawConfig(PropertyType type, DrawMaterialPropertyFunc drawMaterialPropertyFunc)
         {
-            if (!_drawMaterialPropertyFuncMap.ContainsKey(type))
+            if (!s_drawMaterialPropertyFuncMap.ContainsKey(type))
             {
-                _drawMaterialPropertyFuncMap.Add(type, drawMaterialPropertyFunc);
+                s_drawMaterialPropertyFuncMap.Add(type, drawMaterialPropertyFunc);
             }
         }
 
         public static DrawMaterialPropertyFunc GetPropertyDrawFunc(PropertyType type)
         {
-            if (_drawMaterialPropertyFuncMap.TryGetValue(type, out var func))
+            if (s_drawMaterialPropertyFuncMap.TryGetValue(type, out var func))
             {
                 return func;
             }
