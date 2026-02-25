@@ -179,23 +179,39 @@ namespace ScorpioEditor
             EditorGUILayout.Space(2f);
 
             bool isChild    = module.Level == ModuleLevel.Child;
-            bool isExpanded = GetFoldoutState(material, module.Title);
             bool hasToggle  = module.ToggleType != ModuleToggleType.None;
 
             string toggleTarget = ResolveToggleTarget(module);
             bool   isEnabled    = GetToggleState(material, module.ToggleType, toggleTarget);
 
-            bool newExpanded = DrawModuleHeader(module.Title, isChild, isExpanded, isEnabled, hasToggle,
-                out bool newEnabled);
+            if (module.AlwaysExpanded)
+            {
+                // 始终展开模式：绘制标题栏但无折叠箭头、无折叠交互
+                DrawModuleHeader(module.Title, isChild, true, isEnabled, hasToggle,
+                    out bool newEnabled, true);
 
-            if (newExpanded != isExpanded)
-                SetFoldoutState(material, module.Title, newExpanded);
+                if (hasToggle && newEnabled != isEnabled)
+                    SetToggleState(material, module.ToggleType, toggleTarget, newEnabled);
 
-            if (hasToggle && newEnabled != isEnabled)
-                SetToggleState(material, module.ToggleType, toggleTarget, newEnabled);
+                if (module.BodyProperties.Count > 0)
+                    DrawModuleBody(materialEditor, module, toggleTarget, isChild);
+            }
+            else
+            {
+                bool isExpanded = GetFoldoutState(material, module.Title);
 
-            if (newExpanded && module.BodyProperties.Count > 0)
-                DrawModuleBody(materialEditor, module, toggleTarget, isChild);
+                bool newExpanded = DrawModuleHeader(module.Title, isChild, isExpanded, isEnabled, hasToggle,
+                    out bool newEnabled, false);
+
+                if (newExpanded != isExpanded)
+                    SetFoldoutState(material, module.Title, newExpanded);
+
+                if (hasToggle && newEnabled != isEnabled)
+                    SetToggleState(material, module.ToggleType, toggleTarget, newEnabled);
+
+                if (newExpanded && module.BodyProperties.Count > 0)
+                    DrawModuleBody(materialEditor, module, toggleTarget, isChild);
+            }
         }
 
         // ── 绘制模块 body 属性 ────────────────────────────────────────
@@ -217,9 +233,9 @@ namespace ScorpioEditor
         }
 
         // ── 绘制模块标题栏（ShurikenModuleTitle 风格）────────────────
-        // TODO: 参数过多（6 个），后续考虑引入 ModuleHeaderContext 值结构体压缩参数列表。
         private static bool DrawModuleHeader(string title, bool isChild,
-            bool isExpanded, bool isEnabled, bool hasToggle, out bool newEnabled)
+            bool isExpanded, bool isEnabled, bool hasToggle, out bool newEnabled,
+            bool alwaysExpanded = false)
         {
             newEnabled = isEnabled;
 
@@ -228,7 +244,7 @@ namespace ScorpioEditor
                 font          = new GUIStyle(EditorStyles.boldLabel).font,
                 border        = new RectOffset(15, 7, 4, 4),
                 fixedHeight   = isChild ? 20f : 22f,
-                contentOffset = new Vector2(hasToggle ? 36f : 20f, -2f)
+                contentOffset = new Vector2(hasToggle ? 36f : (alwaysExpanded ? 8f : 20f), -2f)
             };
 
             float leftPad    = isChild ? 16f : 0f;
@@ -241,17 +257,20 @@ namespace ScorpioEditor
 
             var e = Event.current;
 
-            // Foldout 箭头
-            var foldRect = new Rect(headerRect.x + 4f,
-                headerRect.y + (headerRect.height - 13f) * 0.5f, 13f, 13f);
-            if (e.type == EventType.Repaint)
-                EditorStyles.foldout.Draw(foldRect, false, false, isExpanded, false);
+            // Foldout 箭头（始终展开模式不绘制）
+            if (!alwaysExpanded)
+            {
+                var foldRect = new Rect(headerRect.x + 4f,
+                    headerRect.y + (headerRect.height - 13f) * 0.5f, 13f, 13f);
+                if (e.type == EventType.Repaint)
+                    EditorStyles.foldout.Draw(foldRect, false, false, isExpanded, false);
+            }
 
             // 模块开关 Toggle
             Rect toggleRect = default;
             if (hasToggle)
             {
-                toggleRect = new Rect(headerRect.x + 20f,
+                toggleRect = new Rect(headerRect.x + (alwaysExpanded ? 8f : 20f),
                     headerRect.y + (headerRect.height - 14f) * 0.5f, 14f, 14f);
                 EditorGUI.BeginChangeCheck();
                 newEnabled = GUI.Toggle(toggleRect, isEnabled, GUIContent.none,
@@ -259,8 +278,8 @@ namespace ScorpioEditor
                 EditorGUI.EndChangeCheck();
             }
 
-            // 点击标题栏翻转 Foldout
-            if (e.type == EventType.MouseDown && headerRect.Contains(e.mousePosition)
+            // 点击标题栏翻转 Foldout（始终展开模式不响应）
+            if (!alwaysExpanded && e.type == EventType.MouseDown && headerRect.Contains(e.mousePosition)
                 && (!hasToggle || !toggleRect.Contains(e.mousePosition)))
             {
                 isExpanded = !isExpanded;
@@ -331,7 +350,8 @@ namespace ScorpioEditor
                 Title             = info.Title,
                 ToggleType        = info.ToggleType,
                 ToggleTarget      = info.ToggleTarget,
-                BeginPropertyName = propName
+                BeginPropertyName = propName,
+                AlwaysExpanded    = info.AlwaysExpanded
             };
 
         /// <summary>
@@ -353,7 +373,7 @@ namespace ScorpioEditor
             for (int j = childIndex - 1; j >= 0; j--)
             {
                 if (modules[j].Level == ModuleLevel.Parent)
-                    return GetFoldoutState(material, modules[j].Title);
+                    return modules[j].AlwaysExpanded || GetFoldoutState(material, modules[j].Title);
             }
             return true; // 无父模块时默认展开
         }

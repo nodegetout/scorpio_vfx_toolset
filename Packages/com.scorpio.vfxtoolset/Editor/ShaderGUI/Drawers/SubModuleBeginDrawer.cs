@@ -8,24 +8,27 @@ namespace ScorpioEditor
     /// 模块标题通过属性的 displayName 传入，支持中文及任意字符。
     ///
     /// 用法：
-    ///   [SubModuleBegin]              → 无开关
+    ///   [SubModuleBegin]              → 无开关，可折叠
+    ///   [SubModuleBegin(1)]           → 无开关，始终展开
     ///   [SubModuleBegin(_KEYWORD_ON)] → keyword 开关
     ///   [SubModuleBegin(prop)]        → property 开关，开关属性名自动取模块 body 第一个属性
-    ///
-    /// 示例：
-    ///   [HideInInspector][SubModuleBegin(_FRESNEL_ON)] _SubModuleBegin_Fresnel ("菲涅尔", Float) = 0
+    ///   [SubModuleBegin(_KEYWORD, 1)] → keyword 开关 + 始终展开
+    ///   [SubModuleBegin(prop, 1)]     → property 开关 + 始终展开
     ///
     /// 附加在 [HideInInspector] Float 属性上，属性名以 _SubModuleBegin_ 开头。
     /// </summary>
     public class SubModuleBeginDrawer : MaterialPropertyDrawer
     {
-        // 无开关：[SubModuleBegin]
-        public SubModuleBeginDrawer() : this(null) { }
+        public SubModuleBeginDrawer() : this(null, 0f) { }
 
-        // keyword 开关：[SubModuleBegin(_KEYWORD_ON)]
-        // property 开关：[SubModuleBegin(prop)]
-        public SubModuleBeginDrawer(string arg)
+        public SubModuleBeginDrawer(string arg) : this(arg, 0f) { }
+
+        public SubModuleBeginDrawer(float alwaysExpanded) : this(null, alwaysExpanded) { }
+
+        public SubModuleBeginDrawer(string arg, float alwaysExpanded)
         {
+            _alwaysExpanded = alwaysExpanded > 0.5f;
+
             if (arg == "prop")
             {
                 _toggleType   = ModuleToggleType.Property;
@@ -45,6 +48,7 @@ namespace ScorpioEditor
 
         private readonly ModuleToggleType _toggleType;
         private readonly string           _toggleTarget;
+        private readonly bool             _alwaysExpanded;
 
         private void EnsureRegistered(string propName, string displayName)
         {
@@ -52,11 +56,12 @@ namespace ScorpioEditor
 
             DrawerInfoRegistry.Register(propName, new DrawerInfo
             {
-                Level        = ModuleLevel.Child,
-                Title        = displayName,
-                ToggleType   = _toggleType,
-                ToggleTarget = _toggleTarget,
-                IsEnd        = false
+                Level          = ModuleLevel.Child,
+                Title          = displayName,
+                ToggleType     = _toggleType,
+                ToggleTarget   = _toggleTarget,
+                AlwaysExpanded = _alwaysExpanded,
+                IsEnd          = false
             });
         }
 
@@ -71,5 +76,4 @@ namespace ScorpioEditor
             EnsureRegistered(prop.name, prop.displayName);
         }
     }
-
 }

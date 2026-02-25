@@ -5,7 +5,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
         // ══════════════════════════════════════════════════════════════
         // 【合并阶段设置】 — 无开关
         // ══════════════════════════════════════════════════════════════
-        [HideInInspector][ModuleBegin] _ModuleBegin_MergeStage ("合并阶段设置", Float) = 0
+        [HideInInspector][ModuleBegin(1)] _ModuleBegin_MergeStage ("合并阶段设置", Float) = 0
 
             [Enum(Add,1,Blend,10)]_DstBlend("混合模式", Float) = 10
             [Enum(UnityEngine.Rendering.CullMode)]_CullMode("剔除模式", Float) = 0
@@ -15,14 +15,14 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
         // ══════════════════════════════════════════════════════════════
         // 【UV模式设置】 — 无开关
         // ══════════════════════════════════════════════════════════════
-        [HideInInspector][ModuleBegin] _ModuleBegin_UVMode ("UV模式设置", Float) = 0
+        [HideInInspector][ModuleBegin(1)] _ModuleBegin_UVMode ("UV模式设置", Float) = 0
 
         [ModuleEnd][Toggle(_ENABLE_SCREEN_UV)]_EnableScreenUV("切换屏幕UV", Float) = 0
 
         // ══════════════════════════════════════════════════════════════
         // 【模板缓存设置】 — 无开关
         // ══════════════════════════════════════════════════════════════
-        [HideInInspector][ModuleBegin] _ModuleBegin_Stencil ("模板缓存设置", Float) = 0
+        [HideInInspector][ModuleBegin(1)] _ModuleBegin_Stencil ("模板缓存设置", Float) = 0
 
             _StencilRef("模板参考值", Range(0, 255)) = 0
             [Enum(UnityEngine.Rendering.CompareFunction)]_StencilComp("比较方式", Float) = 8
@@ -32,7 +32,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
         // ══════════════════════════════════════════════════════════════
         // 【主贴图设置】 — 无开关
         // ══════════════════════════════════════════════════════════════
-        [HideInInspector][ModuleBegin] _ModuleBegin_Main ("主贴图设置", Float) = 0
+        [HideInInspector][ModuleBegin(1)] _ModuleBegin_Main ("主贴图设置", Float) = 0
 
             [MainTexture]_BaseMap("主贴图", 2D) = "white" {}
             [Vector4Split(FourFloats)]_BaseMapToggles("主贴图开关 ## 开启预乘Alpha(禁动画中K开关)|Toggle @ 去黑底(禁动画中K开关)|Toggle @ 开启极坐标(禁动画中K开关)|Toggle @ 切换为2U(禁动画中K开关)|Toggle", Vector) = (0,0,0,0)
@@ -45,7 +45,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
         // ══════════════════════════════════════════════════════════════
         // 【遮罩设置】 — 无开关
         // ══════════════════════════════════════════════════════════════
-        [HideInInspector][ModuleBegin] _ModuleBegin_Mask ("遮罩设置", Float) = 0
+        [HideInInspector][ModuleBegin(1)] _ModuleBegin_Mask ("遮罩设置", Float) = 0
 
             _Mask("Mask贴图", 2D) = "white" {}
             [Vector4Split(FourFloats)]_MaskUVParams("遮罩UV参数 ## U方向流速 @ V方向流速 @ 缩放|Slider(0, 10) @ 旋转|Slider(0, 720)", Vector) = (0,0,1,0)

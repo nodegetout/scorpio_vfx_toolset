@@ -8,30 +8,35 @@ namespace ScorpioEditor
     /// 模块标题通过属性的 displayName 传入，支持中文及任意字符。
     ///
     /// 用法：
-    ///   [ModuleBegin]              → 无开关
+    ///   [ModuleBegin]              → 无开关，可折叠
+    ///   [ModuleBegin(1)]           → 无开关，始终展开（无折叠箭头、不可收起）
     ///   [ModuleBegin(_KEYWORD_ON)] → keyword 开关
     ///   [ModuleBegin(prop)]        → property 开关，开关属性名自动取模块 body 第一个属性
-    ///
-    /// 示例：
-    ///   [HideInInspector][ModuleBegin(_BASE_COLOR_ON)] _ModuleBegin_BaseColor ("基础颜色", Float) = 0
-    ///   [HideInInspector][ModuleBegin(prop)]           _ModuleBegin_Dissolve  ("溶解",     Float) = 0
-    ///       [HideInInspector] _DissolveOn ("", Float) = 0   ← 自动识别为开关属性（body 第一个）
+    ///   [ModuleBegin(_KEYWORD, 1)] → keyword 开关 + 始终展开
+    ///   [ModuleBegin(prop, 1)]     → property 开关 + 始终展开
     ///
     /// 附加在 [HideInInspector] Float 属性上，属性名以 _ModuleBegin_ 开头。
     /// </summary>
     public class ModuleBeginDrawer : MaterialPropertyDrawer
     {
-        // 无开关：[ModuleBegin]
-        public ModuleBeginDrawer() : this(null) { }
+        // 无开关，可折叠：[ModuleBegin]
+        public ModuleBeginDrawer() : this(null, 0f) { }
 
-        // keyword 开关：[ModuleBegin(_KEYWORD_ON)]
-        // property 开关：[ModuleBegin(prop)]
-        public ModuleBeginDrawer(string arg)
+        // keyword/prop 开关，可折叠：[ModuleBegin(_KEYWORD_ON)] / [ModuleBegin(prop)]
+        public ModuleBeginDrawer(string arg) : this(arg, 0f) { }
+
+        // 无开关，始终展开：[ModuleBegin(1)]
+        public ModuleBeginDrawer(float alwaysExpanded) : this(null, alwaysExpanded) { }
+
+        // keyword/prop 开关 + 始终展开：[ModuleBegin(_KEYWORD_ON, 1)]
+        public ModuleBeginDrawer(string arg, float alwaysExpanded)
         {
+            _alwaysExpanded = alwaysExpanded > 0.5f;
+
             if (arg == "prop")
             {
                 _toggleType   = ModuleToggleType.Property;
-                _toggleTarget = string.Empty;   // 自动从 body[0] 收集
+                _toggleTarget = string.Empty;
             }
             else if (!string.IsNullOrEmpty(arg))
             {
@@ -47,6 +52,7 @@ namespace ScorpioEditor
 
         private readonly ModuleToggleType _toggleType;
         private readonly string           _toggleTarget;
+        private readonly bool             _alwaysExpanded;
 
         private void EnsureRegistered(string propName, string displayName)
         {
@@ -54,11 +60,12 @@ namespace ScorpioEditor
 
             DrawerInfoRegistry.Register(propName, new DrawerInfo
             {
-                Level        = ModuleLevel.Parent,
-                Title        = displayName,
-                ToggleType   = _toggleType,
-                ToggleTarget = _toggleTarget,
-                IsEnd        = false
+                Level          = ModuleLevel.Parent,
+                Title          = displayName,
+                ToggleType     = _toggleType,
+                ToggleTarget   = _toggleTarget,
+                AlwaysExpanded = _alwaysExpanded,
+                IsEnd          = false
             });
         }
 
@@ -71,7 +78,6 @@ namespace ScorpioEditor
         public override void OnGUI(Rect position, MaterialProperty prop, GUIContent label, MaterialEditor editor)
         {
             EnsureRegistered(prop.name, prop.displayName);
-            // 不绘制任何内容
         }
     }
 }
