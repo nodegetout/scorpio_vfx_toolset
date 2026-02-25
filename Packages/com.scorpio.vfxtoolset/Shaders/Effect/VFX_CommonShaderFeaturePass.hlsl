@@ -286,7 +286,9 @@ half4 Fragment(Varyings input, half facing : VFACE) : SV_Target
     //fresnel--------------------------------------
     #if defined(_FRESNEL_ON)
 	    half3 viewDirWS = normalize(_WorldSpaceCameraPos.xyz - input.positionWS.xyz);
-		half fresnelVar = CalFresnelWS(viewDirWS.xyz, input.normalWS.xyz, _FresnelScale, _FresnelPower);
+		// half fresnelVar = CalFresnelWS(viewDirWS.xyz, input.normalWS.xyz, _FresnelScale, _FresnelPower);
+		half vertexNdotV = dot(input.normalWS.xyz, viewDirWS.xyz);
+		half fresnelVar = CalFallOffFresnel(vertexNdotV, _FresnelScale, _FresnelPower);
 		#if defined(_REQUIRE_CUSTOMDATA)
 			half2 fresnelMapUV    =  input.uv0.xy;
 		#else
