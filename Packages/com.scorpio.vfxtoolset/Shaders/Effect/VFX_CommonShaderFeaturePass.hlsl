@@ -126,6 +126,8 @@ half4 Fragment(Varyings input, half facing : VFACE) : SV_Target
 	#if defined(_FRESNEL_ON)
 	half4 linearFresnelColor   = Gamma20ToLinear(_FresnelColor);
 	#endif
+
+	float2 oneHourCycledTime = GetOneHourCycledTime();
 	
     half4 faceColor = half4(linearBaseFrontColor.rgb + _FrontIntensity, linearBaseFrontColor.a);
 	
@@ -257,23 +259,19 @@ half4 Fragment(Varyings input, half facing : VFACE) : SV_Target
     {
         finalColor.a *= maskMapValue.r;
     }
-
-    //dissolve_noise--------------------------------------
-    #if defined(_DISSOLVE_ON)
-		#if defined(_NOISE_ON)
-			input.uv2.xy += noiseUV;
-		#endif
-		half4 dissolveVar    = SampleColorTex(_DissolveTex, input.uv2.xy);
-		half3 dissolveParams = half3(dissolveVar.r, _SoftSize, _DissolveStep);
-	    #if defined(_REQUIRE_CUSTOMDATA)
-            // input.uv2.z - DissolveCoe.x,  input.uv2.w - DissolveCoe.y
-			dissolveParams.yz += input.uv2.zw;
-	    #endif
-		dissolveParams.z = dissolveParams.z * lerp(1.0, (1 - maskMapValue.g), step(0.5, _MaskedDissolve));
 	
-		// half4 dissolveOutlineParams = half4(_DissolveOutlineWidth, _DissolveOutlineSoft, _DissolveOutlineOn, _EdgeColorBlendMode);
-		finalColor = ApplyCommonDissolve(dissolveParams, _DissolveEdgeParams, linearDissolveColor.rgb, _EdgeColorBlendMode, finalColor);
-    #endif
+	#if defined(_FALLOFF_DISSOLVE_ON)
+		half direction = 0.5;
+		half2 mainUV = input.uv0.xy;
+		if(_DissolveDir == 0) {direction = mainUV.x;}
+		if(_DissolveDir == 1) {direction = mainUV.y;}
+		half dissolveMapValue = tex2D(_DissolveTex,frac(mainUV * _DissolveNoiseParam.xy + frac(oneHourCycledTime * _DissolveNoiseParam.zw))).r;
+		half edgeMask;
+		half dissolve = DissolveWithEdge(direction - _DissolveThreshold, dissolveMapValue, _DissolveFallOff, _DissolveColorThreshold, _DissolveColorFallOff, edgeMask);
+
+		finalColor.rgb  = lerp(finalColor.rgb, _DissolveColor.rgb, edgeMask);
+		finalColor.a   *= dissolve;
+	#endif
 
     //gradient--------------------------------------
     #if defined(_GRADIENT_ON)

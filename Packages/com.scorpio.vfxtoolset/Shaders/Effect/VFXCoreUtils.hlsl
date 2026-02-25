@@ -125,4 +125,24 @@ half CalFallOffFresnel(half NoV, half range, half fallOff)
     return 1 - fresnel;
 }
 
+
+float BlendWithMaskInverse(float base, float mask, float fallOff)
+{
+    fallOff = max(0.001, fallOff);
+    return saturate((2 * base + mask - 1.0) / fallOff);
+}
+            
+float BlendWithMask(float base, float mask, float fallOff)
+{
+    fallOff = max(0.001, fallOff);
+    return saturate((base + mask - 1.0) / fallOff + base);
+}
+            
+half DissolveWithEdge(half base, half noise, half fallOff, half edgeRange, half edgeFalloff, out half maskEdge)
+{
+    half mask = BlendWithMaskInverse(base, noise, fallOff);
+    maskEdge = 1 - BlendWithMask(base - edgeRange, noise, edgeFalloff);
+    return mask;
+}
+
 #endif

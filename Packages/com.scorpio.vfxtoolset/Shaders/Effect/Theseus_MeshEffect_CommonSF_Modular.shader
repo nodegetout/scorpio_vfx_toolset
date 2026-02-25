@@ -65,13 +65,18 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
         [ModuleEnd][Vector4Split(FourFloats)]_MixBaseMapUVParams("混合贴图UV参数 ## U方向流速 @ V方向流速 @ 缩放|Slider(0, 10) @ 旋转|Slider(0, 720)", Vector) = (0,0,1,0)
 
         // ══════════════════════════════════════════════════════════════
-        // 【溶解设置】 — Keyword 开关 _DISSOLVE_ON
+        // 【溶解设置】 — Keyword 开关 _FALLOFF_DISSOLVE_ON
         // ══════════════════════════════════════════════════════════════
-        [HideInInspector][ModuleBegin(_DISSOLVE_ON)] _ModuleBegin_Dissolve ("溶解设置", Float) = 0
-            _DissolveTex("溶解扰动贴图", 2D) = "white" {}
-            [Vector4Split(FourFloats)]_DissolveParams("溶解参数 ## 贴图旋转|Slider(0, 720) @ 溶解强度 @ 溶解软硬|Slider(0, 2) @ 边缘叠色模式|Toggle", Vector) = (0, -1, 0, 0)
-            [Vector4Split(FourFloats)]_DissolveEdgeParams("溶解边缘参数 ## 开启溶解边缘叠色(禁动画中K开关)|Toggle @ 边缘宽度|Slider(0, 0.5) @ 边缘软硬|Slider(0, 0.5) @ 边缘强度", Vector) = (1, 0.001, 0, 1)
-        [ModuleEnd][HDR]_DissolveColor("边缘颜色", Color) = (1,1,1,1)
+        [ModuleBegin(_FALLOFF_DISSOLVE_ON)]_ModuleBegin_FalloffDissolve("溶解设置", float) = 0
+        _DissolveTex("溶解贴图", 2D) = "black" {}
+        [Enum(X, 0, Y, 1, NoUV, 2)]_DissolveDir("溶解方向切换，默认根据UV横向溶解", Int) = 0
+		[Vector4Split(TwoVector2)]_DissolveNoiseParam("溶解纹理参数 ## 溶解纹理Tiling @ 溶解纹理UV流速",Vector) = (1,1,0,0)
+		[Vector4Split(FourFloats)]_DissolveControlParams("溶解控制参数 ## 溶解阈值|Slider(-2, 2) @ 溶解软硬|Slider(0, 1) @ 溶解边缘阈值|Slider(-2, 2) @ 溶解边缘软硬|Slider(0, 1)", Vector) = (0, 01, 0, 1)
+		[ModuleEnd][HDR]_DissolveColor("溶解边缘颜色", Color) = (1,1,1,1)
+//        _DissolveThreshold("溶解阈值",range(-2,2)) = 0
+//		_DissolveFallOff("溶解边缘软硬",range(0,1)) = 1
+//		_DissolveColorThreshold("溶解边缘颜色阈值", range(-2,2)) = 0
+//		[ModuleEnd]_DissolveColorFallOff("溶解边缘颜色软硬", range(0,1)) = 1
 
         // ══════════════════════════════════════════════════════════════
         // 【FlowMap设置】 — Keyword 开关 _FLOW_MAP_ON
@@ -173,7 +178,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
 			#pragma shader_feature_local _ENABLE_SCREEN_UV
 			#pragma shader_feature_local _MIX_BASE_ON
 			#pragma shader_feature_local _ENABLE_VERTEX_OFFSET
-            #pragma shader_feature_local _DISSOLVE_ON
+            #pragma shader_feature_local _FALLOFF_DISSOLVE_ON
 			#pragma shader_feature_local _GRADIENT_ON
 			#pragma shader_feature_local _COLOUR_ON
 			#pragma shader_feature_local _FRESNEL_ON
@@ -187,7 +192,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
 				#define REQUIRE_POSITIONWS
             #endif
 
-            #if defined(_DISSOLVE_ON)
+            #if defined(_FALLOFF_DISSOLVE_ON)
             #define FRAGMENT_REQUIRE_UV2
             #endif
 

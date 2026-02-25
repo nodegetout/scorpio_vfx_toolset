@@ -141,6 +141,18 @@ half4 _DissolveEdgeParams;
 // #define _DissolveColorPW _DissolveEdgeParams.w
 #endif
 
+#if defined(_FALLOFF_DISSOLVE_ON)
+sampler2D _DissolveTex;
+int _DissolveDir;
+half4 _DissolveNoiseParam;
+half4 _DissolveControlParams;
+half4 _DissolveColor;
+#define _DissolveThreshold       _DissolveControlParams.x 
+#define _DissolveFallOff         _DissolveControlParams.y 
+#define _DissolveColorThreshold  _DissolveControlParams.z 
+#define _DissolveColorFallOff    _DissolveControlParams.w 
+#endif
+
 
 #if defined(_NOISE_ON)
 sampler2D _NoiseTex1;
