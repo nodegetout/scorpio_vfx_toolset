@@ -226,10 +226,55 @@ namespace ScorpioEditor
                 if (module.ToggleType == ModuleToggleType.Property && prop.name == toggleTarget)
                     continue;
 
-                editor.ShaderProperty(prop, prop.displayName);
+                // ModuleEnd 属性的 Drawer 已变为纯标记（0 高度、不绘制），
+                // 需要判断该属性是否同时拥有其他自定义 Drawer（如 Vector4Split）。
+                // • 有其他 Drawer → editor.ShaderProperty 会触发那些 Drawer 的 OnGUI，正确渲染。
+                // • 无其他 Drawer → editor.ShaderProperty 只走 ModuleEndDrawer（不绘制），
+                //   需改用 DefaultShaderProperty 绕过 Drawer 管线，使用 Unity 默认渲染。
+                if (DrawerInfoRegistry.TryGet(prop.name, out var info) && info.IsEnd)
+                {
+                    // 检查该属性是否在 Shader 中还带有除 ModuleEnd 以外的其他 MaterialPropertyDrawer
+                    if (HasOtherDrawerAttributes(editor, prop))
+                        editor.ShaderProperty(prop, prop.displayName);
+                    else
+                        editor.DefaultShaderProperty(prop, prop.displayName);
+                }
+                else
+                {
+                    editor.ShaderProperty(prop, prop.displayName);
+                }
             }
 
             EditorGUI.indentLevel -= isChild ? 2 : 1;
+        }
+
+        /// <summary>
+        /// 检测 Shader 属性上是否存在除 ModuleEnd / ModuleBegin / SubModuleBegin / SubModuleEnd
+        /// 以外的自定义 MaterialPropertyDrawer 特性。
+        /// </summary>
+        private static bool HasOtherDrawerAttributes(MaterialEditor editor, MaterialProperty prop)
+        {
+            var material = editor.target as Material;
+            if (material == null || material.shader == null) return false;
+
+            int idx = material.shader.FindPropertyIndex(prop.name);
+            if (idx < 0) return false;
+
+            string[] attrs = material.shader.GetPropertyAttributes(idx);
+            if (attrs == null) return false;
+
+            for (int i = 0; i < attrs.Length; i++)
+            {
+                string a = attrs[i];
+                // 跳过模块标记系列
+                if (a.StartsWith("ModuleEnd") || a.StartsWith("ModuleBegin") ||
+                    a.StartsWith("SubModuleBegin") || a.StartsWith("SubModuleEnd"))
+                    continue;
+
+                // Unity 内置 Attribute（Enum, Toggle, HDR 等）也算自定义 Drawer
+                return true;
+            }
+            return false;
         }
 
         // ── 绘制模块标题栏（ShurikenModuleTitle 风格）────────────────

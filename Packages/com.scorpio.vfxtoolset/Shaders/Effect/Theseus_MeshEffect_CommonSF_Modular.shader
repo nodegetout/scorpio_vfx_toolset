@@ -40,7 +40,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
             [HDR]_BaseFrontColor("前面叠色", Color) = (1,1,1,1)
             _FrontIntensity("颜色强度", Range(0, 10)) = 0
             [Vector4Split(FourFloats)]_DouYinEffectParams("抖音色效果 ## 开启抖音色效果|Toggle @ OffsetX|Slider(-1, 1) @ OffsetY|Slider(-1, 1) @ _|Hidden", Vector) = (0, 0.04, -0.04, 0)
-        [Vector4Split(FourFloats)][ModuleEnd]_BaseUVParams("主贴图UV参数 ## U方向流速 @ V方向流速 @ 缩放|Slider(0, 10) @ 旋转|Slider(0, 720)", Vector) = (0,0,1,0)
+        [ModuleEnd][Vector4Split(FourFloats)]_BaseUVParams("主贴图UV参数 ## U方向流速 @ V方向流速 @ 缩放|Slider(0, 10) @ 旋转|Slider(0, 720)", Vector) = (0,0,1,0)
 
         // ══════════════════════════════════════════════════════════════
         // 【遮罩设置】 — 无开关
@@ -51,7 +51,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
             [Vector4Split(FourFloats)]_MaskUVParams("遮罩UV参数 ## U方向流速 @ V方向流速 @ 缩放|Slider(0, 10) @ 旋转|Slider(0, 720)", Vector) = (0,0,1,0)
             [Vector4Split(FourFloats)]_MaskMapParams("遮罩参数 ## 兼容纯Alpha图|Toggle @ 遮罩强度|Slider(0, 1) @ _|Hidden @ _|Hidden", Vector) = (0,1,0,0)
             [Toggle]_MaskMapSwitchUV1("切换2U", Float) = 0
-        [Vector4Split(FourFloats)][ModuleEnd]_MaskMapToggles("遮罩通道开关 ## R通道不影响主贴图Alpha(禁动画中K开关)|Toggle @ R通道不影响混合贴图Alpha(禁动画中K开关)|Toggle @ G通道影响溶解(禁动画中K开关)|Toggle @ B通道影响扰动(禁动画中K开关)|Toggle", Vector) = (0,0,0,0)
+        [ModuleEnd][Vector4Split(FourFloats)]_MaskMapToggles("遮罩通道开关 ## R通道不影响主贴图Alpha(禁动画中K开关)|Toggle @ R通道不影响混合贴图Alpha(禁动画中K开关)|Toggle @ G通道影响溶解(禁动画中K开关)|Toggle @ B通道影响扰动(禁动画中K开关)|Toggle", Vector) = (0,0,0,0)
 
         // ══════════════════════════════════════════════════════════════
         // 【双面设置】 — Property 开关 _DoubleSideOn
@@ -71,7 +71,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
             _MixDiffuse("混合贴图", 2D) = "black" {}
             [HDR]_MixTintColor("混合贴图叠色", Color) = (1,1,1,1)
             [Vector4Split(FourFloats)]_MixMapParams("混合参数 ## 去黑|Toggle @ 开启Noise影响|Toggle @ 开启Ramp混色模式|Toggle @ 混合贴图强度|Slider(0, 2)", Vector) = (0, 0, 0, 1)
-        [Vector4Split(FourFloats)][ModuleEnd]_MixBaseMapUVParams("混合贴图UV参数 ## U方向流速 @ V方向流速 @ 缩放|Slider(0, 10) @ 旋转|Slider(0, 720)", Vector) = (0,0,1,0)
+        [ModuleEnd][Vector4Split(FourFloats)]_MixBaseMapUVParams("混合贴图UV参数 ## U方向流速 @ V方向流速 @ 缩放|Slider(0, 10) @ 旋转|Slider(0, 720)", Vector) = (0,0,1,0)
 
         // ══════════════════════════════════════════════════════════════
         // 【溶解设置】 — Keyword 开关 _DISSOLVE_ON
@@ -91,7 +91,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
 
             [Toggle(_FLOW_MAP_ON)]_FlowMapOn("开启FlowMap(禁动画中K开关)", Float) = 0
             _FlowMap("FlowMap贴图", 2D) = "white" {}
-        [Vector4Split(FourFloats)][ModuleEnd]_FlowMapParams("FlowMap参数 ## 流动速度 @ 扰动强度|Slider(0, 1) @ _|Hidden @ _|Hidden", Vector) = (0.5, 1, 0, 0)
+        [ModuleEnd][Vector4Split(FourFloats)]_FlowMapParams("FlowMap参数 ## 流动速度 @ 扰动强度|Slider(0, 1) @ _|Hidden @ _|Hidden", Vector) = (0.5, 1, 0, 0)
 
         // ══════════════════════════════════════════════════════════════
         // 【扰动设置】 — Keyword 开关 _NOISE_ON
@@ -115,7 +115,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
             _FresnelMap("叠乘贴图", 2D) = "white" {}
             [Toggle]_FresnelMapUse2U("使用2U", Float) = 0
             [HDR]_FresnelColor("颜色", Color) = (1,1,1,1)
-        [Vector4Split(FourFloats)][ModuleEnd]_FresnelParams("Fresnel参数 ## 反向Fresnel Alpha|Toggle @ 范围|Slider(0, 2) @ 强度|Slider(0, 1) @ 叠加模式|Toggle", Vector) = (0, 0, 1, 0)
+        [ModuleEnd][Vector4Split(FourFloats)]_FresnelParams("Fresnel参数 ## 反向Fresnel Alpha|Toggle @ 范围|Slider(0, 2) @ 强度|Slider(0, 1) @ 叠加模式|Toggle", Vector) = (0, 0, 1, 0)
 
         // ══════════════════════════════════════════════════════════════
         // 【顶点偏移设置】 — Keyword 开关 _ENABLE_VERTEX_OFFSET
@@ -138,7 +138,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
             [Toggle]_GradientSameDiffOn("左右渐变开启Diff相同UV(禁动画中K开关)", Float) = 0
             _LeftColor("左侧渐变色", Color) = (1,1,1,1)
             _RightColor("右侧渐变色", Color) = (1,1,1,1)
-        [Vector4Split(FourFloats)][ModuleEnd]_GradientParams("渐变参数 ## UV权重|Slider(0, 1) @ 左侧渐变色权重|Slider(0, 1) @ 右侧渐变色权重|Slider(0, 2) @ 渐变色权重偏移|Slider(-1, 1)", Vector) = (0, 0, 1, 0)
+        [ModuleEnd][Vector4Split(FourFloats)]_GradientParams("渐变参数 ## UV权重|Slider(0, 1) @ 左侧渐变色权重|Slider(0, 1) @ 右侧渐变色权重|Slider(0, 2) @ 渐变色权重偏移|Slider(-1, 1)", Vector) = (0, 0, 1, 0)
 
         // ══════════════════════════════════════════════════════════════
         // 【软粒子设置】 — Keyword 开关 _ENABLE_PLANAR_SOFT_PARTICLE

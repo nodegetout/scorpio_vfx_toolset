@@ -52,15 +52,16 @@ namespace ScorpioEditor
         public override float GetPropertyHeight(MaterialProperty prop, string label, MaterialEditor editor)
         {
             EnsureRegistered(prop.name);
-            // 不改变属性高度，属性正常绘制
-            return base.GetPropertyHeight(prop, label, editor);
+            // 纯标记 Drawer，不占高度；实际绘制由 ScorpioModuleShaderGUIBase 负责
+            return 0f;
         }
 
         public override void OnGUI(Rect position, MaterialProperty prop, GUIContent label, MaterialEditor editor)
         {
             EnsureRegistered(prop.name);
-            // 正常绘制属性本身
-            editor.DefaultShaderProperty(prop, label.text);
+            // 纯标记 Drawer，不绘制任何内容；
+            // 属性的实际渲染由 ScorpioModuleShaderGUIBase.DrawModuleBody 通过
+            // editor.DefaultShaderProperty 完成，避免与同属性上的其他 Drawer（如 Vector4SplitDrawer）冲突。
         }
     }
 }
