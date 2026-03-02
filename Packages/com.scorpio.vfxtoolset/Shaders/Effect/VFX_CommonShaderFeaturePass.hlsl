@@ -45,13 +45,13 @@ Varyings Vertex(Attributes input)
     #endif
 
 	// dissolve
-	#if defined(_DISSOLVE_ON)
+	#if defined(_FALLOFF_DISSOLVE_ON)
 		float2 dissolveUV = input.uv0.xy;
 	    #if defined(_REQUIRE_CUSTOMDATA)
 		dissolveUV += input.uv2.zw;
 		output.uv2.zw = max(0, input.uv2.xy);
 	    #endif
-		output.uv2.xy = RotateUV(dissolveUV, _DissolveAngle);
+		// output.uv2.xy = RotateUV(dissolveUV, _DissolveAngle);
 		output.uv2.xy = TRANSFORM_TEX(output.uv2.xy, _DissolveTex);
 	#endif
 
@@ -114,7 +114,7 @@ half4 Fragment(Varyings input, half facing : VFACE) : SV_Target
 	half4 linearRightColor = Gamma20ToLinear(_RightColor);
 	#endif
 	
-	#if defined(_DISSOLVE_ON)
+	#if defined(_FALLOFF_DISSOLVE_ON)
 	half4 linearDissolveColor = Gamma20ToLinear(_DissolveColor);
 	#endif
 	

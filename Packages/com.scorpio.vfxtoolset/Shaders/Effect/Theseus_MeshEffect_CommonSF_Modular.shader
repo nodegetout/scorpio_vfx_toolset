@@ -193,6 +193,7 @@ Shader "Hidden/Theseus/VFX/MeshEffect_CommonSF_Modular"
             #endif
 
             #if defined(_FALLOFF_DISSOLVE_ON)
+            #define VERTEX_REQUIRE_UV2
             #define FRAGMENT_REQUIRE_UV2
             #endif
 

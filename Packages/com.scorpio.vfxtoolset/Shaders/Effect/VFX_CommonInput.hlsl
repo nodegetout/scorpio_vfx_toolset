@@ -144,6 +144,7 @@ half4 _DissolveEdgeParams;
 #if defined(_FALLOFF_DISSOLVE_ON)
 sampler2D _DissolveTex;
 int _DissolveDir;
+half4 _DissolveTex_ST;
 half4 _DissolveNoiseParam;
 half4 _DissolveControlParams;
 half4 _DissolveColor;
