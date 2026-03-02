@@ -11,6 +11,8 @@ namespace ScorpioEditor.ShaderMemoryTest
     public static class ShaderMemoryTestSceneGenerator
     {
         private const int QuadsPerYield = 50;
+        private const float QuadSpacing = 1.5f;
+        private const string RootName = "ShaderMemoryTestRoot";
 
         public static List<Material> LoadMaterialsFromOutputDir(string materialsOutputDir)
         {
@@ -35,51 +37,14 @@ namespace ScorpioEditor.ShaderMemoryTest
                 return false;
             }
 
-            string path = config.TestScenePath;
-            if (string.IsNullOrWhiteSpace(path) || !path.EndsWith(".unity"))
-            {
-                error = "TestScenePath must be a .unity path (e.g. Assets/ShaderMemoryTest/ShaderMemoryTestScene.unity).";
+            if (!OpenOrCreateScene(config.TestScenePath, out var scene, out var root, out error))
                 return false;
-            }
 
-            EnsureDirectoryExists(System.IO.Path.GetDirectoryName(path).Replace('\\', '/'));
+            CreateQuadsUnderParent(root, materials);
 
-            Scene scene;
-            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) != null)
-                scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
-            else
-                scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
-
-            const string rootName = "ShaderMemoryTestRoot";
-            Transform root = GameObject.Find(rootName)?.transform;
-            if (root != null)
-            {
-                UnityEngine.Object.DestroyImmediate(root.gameObject);
-            }
-
-            GameObject rootGo = new GameObject(rootName);
-            root = rootGo.transform;
-
-            int count = materials.Count;
-            int cols = Mathf.Max(1, (int)Mathf.Sqrt(count));
-            float spacing = 1.5f;
-            for (int i = 0; i < count; i++)
-            {
-                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                quad.name = $"Quad_{i}";
-                quad.transform.SetParent(root, false);
-                int row = i / cols;
-                int col = i % cols;
-                quad.transform.localPosition = new Vector3(col * spacing, row * spacing, 0f);
-
-                var renderer = quad.GetComponent<MeshRenderer>();
-                if (renderer != null && i < materials.Count)
-                    renderer.sharedMaterial = materials[i];
-            }
-
-            bool saved = EditorSceneManager.SaveScene(scene, path);
+            bool saved = EditorSceneManager.SaveScene(scene, config.TestScenePath);
             if (!saved)
-                error = "Failed to save scene to " + path;
+                error = "Failed to save scene to " + config.TestScenePath;
             return saved;
         }
 
@@ -98,52 +63,16 @@ namespace ScorpioEditor.ShaderMemoryTest
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(testScenePath) || !testScenePath.EndsWith(".unity"))
-            {
-                error = "TestScenePath must be a .unity path.";
+            if (!OpenOrCreateScene(testScenePath, out var scene, out var root, out error))
                 return false;
-            }
-
-            EnsureDirectoryExists(System.IO.Path.GetDirectoryName(testScenePath).Replace('\\', '/'));
-
-            Scene scene;
-            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(testScenePath) != null)
-                scene = EditorSceneManager.OpenScene(testScenePath, OpenSceneMode.Single);
-            else
-                scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
-
-            const string rootName = "ShaderMemoryTestRoot";
-            Transform root = GameObject.Find(rootName)?.transform;
-            if (root != null)
-                UnityEngine.Object.DestroyImmediate(root.gameObject);
-
-            GameObject rootGo = new GameObject(rootName);
-            root = rootGo.transform;
 
             foreach (var (entry, materials) in perShaderMaterials)
             {
                 if (materials == null || materials.Count == 0) continue;
 
-                string shortName = entry.GetShortNameForScene();
-                GameObject shaderRoot = new GameObject(shortName);
+                GameObject shaderRoot = new GameObject(entry.GetShortNameForScene());
                 shaderRoot.transform.SetParent(root, false);
-
-                int count = materials.Count;
-                int cols = Mathf.Max(1, (int)Mathf.Sqrt(count));
-                float spacing = 1.5f;
-                for (int i = 0; i < count; i++)
-                {
-                    var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                    quad.name = $"Quad_{i}";
-                    quad.transform.SetParent(shaderRoot.transform, false);
-                    int row = i / cols;
-                    int col = i % cols;
-                    quad.transform.localPosition = new Vector3(col * spacing, row * spacing, 0f);
-
-                    var renderer = quad.GetComponent<MeshRenderer>();
-                    if (renderer != null && i < materials.Count)
-                        renderer.sharedMaterial = materials[i];
-                }
+                CreateQuadsUnderParent(shaderRoot.transform, materials);
             }
 
             bool saved = EditorSceneManager.SaveScene(scene, testScenePath);
@@ -169,27 +98,11 @@ namespace ScorpioEditor.ShaderMemoryTest
                 yield break;
             }
 
-            if (string.IsNullOrWhiteSpace(testScenePath) || !testScenePath.EndsWith(".unity"))
+            if (!OpenOrCreateScene(testScenePath, out var scene, out var root, out string openErr))
             {
-                setError?.Invoke("TestScenePath must be a .unity path.");
+                setError?.Invoke(openErr);
                 yield break;
             }
-
-            EnsureDirectoryExists(System.IO.Path.GetDirectoryName(testScenePath).Replace('\\', '/'));
-
-            Scene scene;
-            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(testScenePath) != null)
-                scene = EditorSceneManager.OpenScene(testScenePath, OpenSceneMode.Single);
-            else
-                scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
-
-            const string rootName = "ShaderMemoryTestRoot";
-            Transform root = GameObject.Find(rootName)?.transform;
-            if (root != null)
-                UnityEngine.Object.DestroyImmediate(root.gameObject);
-
-            GameObject rootGo = new GameObject(rootName);
-            root = rootGo.transform;
 
             int shaderCount = perShaderMaterials.Count;
             int totalQuads = 0;
@@ -202,27 +115,16 @@ namespace ScorpioEditor.ShaderMemoryTest
                 var (entry, materials) = perShaderMaterials[s];
                 if (materials == null || materials.Count == 0) continue;
 
-                string shortName = entry.GetShortNameForScene();
-                GameObject shaderRoot = new GameObject(shortName);
+                GameObject shaderRoot = new GameObject(entry.GetShortNameForScene());
                 shaderRoot.transform.SetParent(root, false);
 
                 int count = materials.Count;
                 int cols = Mathf.Max(1, (int)Mathf.Sqrt(count));
-                float spacing = 1.5f;
                 for (int i = 0; i < count; i++)
                 {
-                    var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                    quad.name = $"Quad_{i}";
-                    quad.transform.SetParent(shaderRoot.transform, false);
-                    int row = i / cols;
-                    int col = i % cols;
-                    quad.transform.localPosition = new Vector3(col * spacing, row * spacing, 0f);
-
-                    var renderer = quad.GetComponent<MeshRenderer>();
-                    if (renderer != null && i < materials.Count)
-                        renderer.sharedMaterial = materials[i];
-
+                    CreateSingleQuad(shaderRoot.transform, materials[i], i, cols);
                     quadsCreated++;
+
                     if (i % QuadsPerYield == QuadsPerYield - 1 || i == count - 1)
                     {
                         if (onProgress != null && onProgress(quadsCreated, totalQuads, s + 1, shaderCount))
@@ -240,18 +142,61 @@ namespace ScorpioEditor.ShaderMemoryTest
                 setError?.Invoke("Failed to save scene to " + testScenePath);
         }
 
-        private static void EnsureDirectoryExists(string dir)
+        // ─── 私有辅助方法 ───
+
+        /// <summary>
+        /// 打开或创建场景，并准备根节点（销毁旧的、创建新的）。
+        /// </summary>
+        private static bool OpenOrCreateScene(string scenePath, out Scene scene, out Transform root, out string error)
         {
-            if (string.IsNullOrEmpty(dir) || !dir.StartsWith("Assets/")) return;
-            string[] parts = dir.Split('/');
-            string current = parts[0];
-            for (int i = 1; i < parts.Length; i++)
+            scene = default;
+            root = null;
+            error = null;
+
+            if (string.IsNullOrWhiteSpace(scenePath) || !scenePath.EndsWith(".unity"))
             {
-                string next = current + "/" + parts[i];
-                if (!AssetDatabase.IsValidFolder(next))
-                    AssetDatabase.CreateFolder(current, parts[i]);
-                current = next;
+                error = "TestScenePath must be a .unity path (e.g. Assets/ShaderMemoryTest/ShaderMemoryTestScene.unity).";
+                return false;
             }
+
+            ShaderMemoryTestPathUtils.EnsureDirectoryExists(
+                System.IO.Path.GetDirectoryName(scenePath).Replace('\\', '/'));
+
+            scene = AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) != null
+                ? EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single)
+                : EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+
+            Transform existing = GameObject.Find(RootName)?.transform;
+            if (existing != null)
+                UnityEngine.Object.DestroyImmediate(existing.gameObject);
+
+            root = new GameObject(RootName).transform;
+            return true;
+        }
+
+        /// <summary>
+        /// 在 parent 下为每个材质创建一个 Quad 并网格排列。
+        /// </summary>
+        private static void CreateQuadsUnderParent(Transform parent, List<Material> materials)
+        {
+            int count = materials.Count;
+            int cols = Mathf.Max(1, (int)Mathf.Sqrt(count));
+            for (int i = 0; i < count; i++)
+                CreateSingleQuad(parent, materials[i], i, cols);
+        }
+
+        private static void CreateSingleQuad(Transform parent, Material material, int index, int cols)
+        {
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            quad.name = $"Quad_{index}";
+            quad.transform.SetParent(parent, false);
+            int row = index / cols;
+            int col = index % cols;
+            quad.transform.localPosition = new Vector3(col * QuadSpacing, row * QuadSpacing, 0f);
+
+            var renderer = quad.GetComponent<MeshRenderer>();
+            if (renderer != null)
+                renderer.sharedMaterial = material;
         }
     }
 }

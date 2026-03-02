@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -7,26 +6,6 @@ namespace ScorpioEditor.ShaderMemoryTest
 {
     public static class ShaderMemoryTestSvcGenerator
     {
-        /// <summary>
-        /// 将 KeywordCombination 转为“仅包含启用关键字”的数组，与 MaterialKeywordApplier 逻辑一致。
-        /// </summary>
-        public static string[] GetEnabledKeywords(in KeywordCombination combo)
-        {
-            var list = new List<string>();
-            if (combo.GlobalHdrOn)
-                list.Add(ParticleEffectModularKeywords.GlobalHdr);
-            for (int i = 0; i < ParticleEffectModularKeywords.LocalBinary.Length; i++)
-            {
-                if ((combo.Local.BinaryBits & (1u << i)) != 0)
-                    list.Add(ParticleEffectModularKeywords.LocalBinary[i]);
-            }
-            if (combo.Local.FlowMapNoise == ParticleEffectModularKeywords.FlowMapNoiseOption.FlowMap)
-                list.Add(ParticleEffectModularKeywords.FlowMapKeyword);
-            else if (combo.Local.FlowMapNoise == ParticleEffectModularKeywords.FlowMapNoiseOption.Noise)
-                list.Add(ParticleEffectModularKeywords.NoiseKeyword);
-            return list.ToArray();
-        }
-
         /// <summary>
         /// 生成 Shader Variant Collection 资产，包含所有合法关键字组合对应的变体。
         /// </summary>
@@ -52,7 +31,7 @@ namespace ScorpioEditor.ShaderMemoryTest
 
             foreach (var combo in combinations)
             {
-                string[] keywords = GetEnabledKeywords(combo);
+                string[] keywords = MaterialKeywordApplier.GetEnabledKeywords(combo);
                 foreach (var passType in passTypesToTry)
                 {
                     try
@@ -128,18 +107,7 @@ namespace ScorpioEditor.ShaderMemoryTest
             return added;
         }
 
-        private static void EnsureDirectoryExists(string dir)
-        {
-            if (string.IsNullOrEmpty(dir) || !dir.StartsWith("Assets/")) return;
-            string[] parts = dir.Split('/');
-            string current = parts[0];
-            for (int i = 1; i < parts.Length; i++)
-            {
-                string next = current + "/" + parts[i];
-                if (!AssetDatabase.IsValidFolder(next))
-                    AssetDatabase.CreateFolder(current, parts[i]);
-                current = next;
-            }
-        }
+        private static void EnsureDirectoryExists(string dir) =>
+            ShaderMemoryTestPathUtils.EnsureDirectoryExists(dir);
     }
 }

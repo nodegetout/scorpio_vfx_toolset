@@ -34,24 +34,14 @@ namespace ScorpioEditor.ShaderMemoryTest
                 return false;
             }
 
-            Object svcAsset = svc;
-            if (svcAsset == null)
-            {
-                error = "SVC 未保存为资产，请先保存。";
-                return false;
-            }
-
             for (int i = 0; i < prop.arraySize; i++)
             {
-                if (prop.GetArrayElementAtIndex(i).objectReferenceValue == svcAsset)
-                {
-                    error = null;
+                if (prop.GetArrayElementAtIndex(i).objectReferenceValue == (Object)svc)
                     return true;
-                }
             }
 
             prop.arraySize++;
-            prop.GetArrayElementAtIndex(prop.arraySize - 1).objectReferenceValue = svcAsset;
+            prop.GetArrayElementAtIndex(prop.arraySize - 1).objectReferenceValue = svc;
             so.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.SaveAssets();
             return true;
