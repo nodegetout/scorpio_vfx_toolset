@@ -40,10 +40,11 @@ namespace ScorpioEditor.ShaderMemoryTest
             }
         }
 
-        private IEnumerator RunBatchCreateRoutine()
+        private IEnumerator RunFullPipelineRoutine()
         {
             var perShaderMaterials = new List<(ShaderMemoryTestEntry entry, List<Material> materials)>();
 
+            // Step 1: 生成材质
             for (int e = 0; e < _shaderEntries.Count; e++)
             {
                 var entry = _shaderEntries[e];
@@ -53,7 +54,7 @@ namespace ScorpioEditor.ShaderMemoryTest
                 var matRoutine = ShaderMemoryTestRunner.GenerateMaterialsCoroutine(config, state, (cur, tot) =>
                 {
                     return EditorUtility.DisplayCancelableProgressBar(
-                        "生成材质",
+                        "Step 1/4 — 生成材质",
                         $"[{e + 1}/{_shaderEntries.Count}] {entry.GetShortNameForScene()} {cur}/{tot}",
                         (float)cur / Math.Max(1, tot));
                 });
@@ -73,6 +74,7 @@ namespace ScorpioEditor.ShaderMemoryTest
 
             EditorUtility.ClearProgressBar();
 
+            // Step 2: 生成场景
             string sceneError = null;
             var sceneRoutine = ShaderMemoryTestSceneGenerator.GenerateOrUpdateSceneMultiShaderCoroutine(
                 _testScenePath,
@@ -80,7 +82,7 @@ namespace ScorpioEditor.ShaderMemoryTest
                 (cur, tot, sIdx, sCount) =>
                 {
                     return EditorUtility.DisplayCancelableProgressBar(
-                        "生成场景",
+                        "Step 2/4 — 生成场景",
                         $"创建 Quad {cur}/{tot} (Shader {sIdx}/{sCount})",
                         (float)cur / Math.Max(1, tot));
                 },
@@ -97,10 +99,58 @@ namespace ScorpioEditor.ShaderMemoryTest
                 yield break;
             }
 
+            // Step 3: 生成 SVC
+            int totalVariants = 0;
+            for (int e = 0; e < _shaderEntries.Count; e++)
+            {
+                var entry = _shaderEntries[e];
+                EditorUtility.DisplayProgressBar(
+                    "Step 3/4 — 生成 SVC",
+                    $"[{e + 1}/{_shaderEntries.Count}] {entry.GetShortNameForScene()}",
+                    (float)(e + 1) / _shaderEntries.Count);
+
+                var config = GetConfigForEntry(entry);
+                var svc = ShaderMemoryTestSvcGenerator.GenerateSvc(config, out string svcErr);
+                if (svcErr != null)
+                {
+                    _lastError = svcErr;
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+                if (svc != null) totalVariants += svc.variantCount;
+                yield return null;
+            }
+
+            EditorUtility.ClearProgressBar();
+
+            // Step 4: 加入 Preloaded Shaders
+            int addedSvc = 0;
+            for (int e = 0; e < _shaderEntries.Count; e++)
+            {
+                var entry = _shaderEntries[e];
+                EditorUtility.DisplayProgressBar(
+                    "Step 4/4 — 加入 Preloaded Shaders",
+                    $"[{e + 1}/{_shaderEntries.Count}] {entry.GetShortNameForScene()}",
+                    (float)(e + 1) / _shaderEntries.Count);
+
+                var path = $"{_svcOutputBasePath.TrimEnd('/')}/{entry.GetShortNameForScene()}.shadervariants";
+                if (ShaderMemoryTestPreloadedShaders.AddSvcToPreloadedShadersByPath(path, out string preloadErr))
+                    addedSvc++;
+                else if (preloadErr != null)
+                {
+                    _lastError = preloadErr;
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+                yield return null;
+            }
+
+            EditorUtility.ClearProgressBar();
+
             int totalMats = 0;
             foreach (var (_, mats) in perShaderMaterials)
                 totalMats += mats.Count;
-            _lastMessage = $"批量创建完成：{perShaderMaterials.Count} 个 Shader，共 {totalMats} 个材质，场景已保存到 {_testScenePath}。";
+            _lastMessage = $"全部完成：{perShaderMaterials.Count} 个 Shader，{totalMats} 个材质，{totalVariants} 个变体，{addedSvc} 个 SVC 已加入 Preloaded Shaders，场景已保存到 {_testScenePath}。";
         }
 
         private ShaderMemoryTestConfig GetConfigForEntry(ShaderMemoryTestEntry entry)
@@ -175,84 +225,14 @@ namespace ScorpioEditor.ShaderMemoryTest
             bool coroutineRunning = ShaderMemoryTestCoroutineUtility.IsRunning;
             EditorGUI.BeginDisabledGroup(!hasEntries || coroutineRunning);
 
-            if (GUILayout.Button("批量生成材质并更新场景（带进度条，不卡顿）", GUILayout.Height(32)))
+            if (GUILayout.Button("一键生成（材质 → 场景 → SVC → Preloaded Shaders）", GUILayout.Height(36)))
             {
                 _lastError = null;
                 _lastMessage = null;
-                ShaderMemoryTestCoroutineUtility.Start(RunBatchCreateRoutine());
+                ShaderMemoryTestCoroutineUtility.Start(RunFullPipelineRoutine());
             }
 
             EditorGUI.EndDisabledGroup();
-
-            if (GUILayout.Button("1. 生成材质资产（对列表中所有 Shader）", GUILayout.Height(28)))
-            {
-                _lastError = null;
-                _lastMessage = null;
-                int total = 0;
-                foreach (var entry in _shaderEntries)
-                {
-                    var config = GetConfigForEntry(entry);
-                    var materials = ShaderMemoryTestRunner.GenerateMaterials(config, out string err);
-                    if (err != null) { _lastError = err; break; }
-                    total += materials.Count;
-                }
-                if (_lastError == null)
-                    _lastMessage = $"已生成 {total} 个材质并保存到本地工程。";
-            }
-
-            if (GUILayout.Button("2. 生成/更新测试场景（从各 Shader 目录加载，按层级组织）", GUILayout.Height(28)))
-            {
-                _lastError = null;
-                _lastMessage = null;
-                var perShaderMaterials = new List<(ShaderMemoryTestEntry entry, List<Material> materials)>();
-                foreach (var entry in _shaderEntries)
-                {
-                    var dir = entry.GetEffectiveMaterialsOutputDir();
-                    var mats = ShaderMemoryTestSceneGenerator.LoadMaterialsFromOutputDir(dir);
-                    perShaderMaterials.Add((entry, mats));
-                }
-                bool ok = ShaderMemoryTestSceneGenerator.GenerateOrUpdateSceneMultiShader(_testScenePath, perShaderMaterials, out string err);
-                if (err != null)
-                    _lastError = err;
-                else if (ok)
-                {
-                    int total = 0;
-                    foreach (var (_, mats) in perShaderMaterials) total += mats.Count;
-                    _lastMessage = $"场景已保存到本地工程：{_testScenePath}，共引用 {total} 个材质。";
-                }
-            }
-
-            if (GUILayout.Button("2.5 生成 Shader Variant Collection（每个 Shader 单独 SVC）", GUILayout.Height(28)))
-            {
-                _lastError = null;
-                _lastMessage = null;
-                int count = 0;
-                foreach (var entry in _shaderEntries)
-                {
-                    var config = GetConfigForEntry(entry);
-                    var svc = ShaderMemoryTestSvcGenerator.GenerateSvc(config, out string err);
-                    if (err != null) { _lastError = err; break; }
-                    if (svc != null) count += svc.variantCount;
-                }
-                if (_lastError == null)
-                    _lastMessage = $"SVC 已生成，共 {count} 个变体。";
-            }
-
-            if (GUILayout.Button("3. 将各 SVC 加入 Preloaded Shaders", GUILayout.Height(28)))
-            {
-                _lastError = null;
-                _lastMessage = null;
-                int added = 0;
-                foreach (var entry in _shaderEntries)
-                {
-                    var path = $"{_svcOutputBasePath.TrimEnd('/')}/{entry.GetShortNameForScene()}.shadervariants";
-                    if (ShaderMemoryTestPreloadedShaders.AddSvcToPreloadedShadersByPath(path, out string err))
-                        added++;
-                    else if (err != null) _lastError = err;
-                }
-                if (_lastError == null)
-                    _lastMessage = $"已将 {added} 个 SVC 加入 Graphics Settings > Preloaded Shaders。";
-            }
 
             EditorGUILayout.Space(12);
             EditorGUILayout.LabelField("说明与流程", EditorStyles.boldLabel);
