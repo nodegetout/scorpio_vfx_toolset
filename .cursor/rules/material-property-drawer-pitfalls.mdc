@@ -1,0 +1,57 @@
+---
+description: Unity MaterialPropertyDrawer / ShaderLab attribute 参数限制与 Vector4Split 正确用法
+globs: "**/*.shader,**/Drawers/*.cs"
+alwaysApply: false
+---
+
+# MaterialPropertyDrawer 使用注意事项
+
+## ShaderLab Attribute 参数限制
+
+Unity ShaderLab 的自定义 attribute 参数**不支持**以下内容：
+
+- 含括号的字符串，如 `"开启预乘Alpha(禁动画中K开关)"`
+- 含特殊符号的中文标签
+- 双引号包裹的复杂字符串
+
+**禁止**在 Shader 中使用如下写法：
+
+```hlsl
+// ❌ 会导致编译报错
+[MaterialPropertyDraw("开启预乘Alpha(禁动画中K开关)", Toggle, 0)]
+[Vector4Split(FourFloats)]_Prop("标题", Vector) = (0,0,0,0)
+```
+
+## 正确做法：Vector4Split 直传类型 + displayName 传标签
+
+将分量类型放入 `[Vector4Split]` attribute 参数，标签和附加数据放入 Property 的 `displayName`，各分量之间用 `|` 分隔。
+
+```hlsl
+// ✅ 正确写法
+[Vector4Split(FourFloats, Toggle, Toggle, Toggle, Toggle)]
+_Prop("标题|标签1(可含括号)|标签2|标签3|标签4", Vector) = (0,0,0,0)
+```
+
+## displayName 各段格式
+
+| 类型 | 格式 | 示例 |
+|------|------|------|
+| Float / Toggle / Hidden | `纯标签文本` | `U方向流速` |
+| Slider | `标签(min, max)` | `缩放(0, 10)` |
+| Enum | `标签(选项A,0,选项B,1)` | `叠加模式(Multiply,0,Add,1)` |
+
+## 完整示例
+
+```hlsl
+// FourFloats — 4 个分量类型
+[Vector4Split(FourFloats, Float, Float, Slider, Slider)]
+_UVParams("UV参数|U流速|V流速|缩放(0, 10)|旋转(0, 720)", Vector) = (0,0,1,0)
+
+// TwoVector2 — 2 个分量类型
+[Vector4Split(TwoVector2, Float, Float)]
+_NoiseParam("噪声参数|Tiling|UV流速", Vector) = (1,1,0,0)
+
+// Enum 分量
+[Vector4Split(FourFloats, Toggle, Slider, Slider, Enum)]
+_Params("参数|开关|范围(0, 2)|强度(0, 1)|模式(Multiply,0,Add,1)", Vector) = (0,0,1,0)
+```
