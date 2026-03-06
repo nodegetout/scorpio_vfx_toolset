@@ -71,6 +71,7 @@ namespace ScorpioEditor
         private readonly float     _labelWidth;
         private readonly bool      _modeValid;
         private readonly string    _modeErrorMsg;
+        private readonly string[]  _rawTypes;  // null = 旧语法（## / @ 格式）
 
         // drawer 缓存：避免每帧 new，_cachedDisplayName 用于热重载失效检测
         private IFloatComponentDrawer[] _cachedDrawers;
@@ -78,13 +79,36 @@ namespace ScorpioEditor
 
         // ── 构造函数 ─────────────────────────────────────────────────
 
-        /// <summary>[Vector4Split(mode)]</summary>
-        public Vector4SplitDrawer(string mode) : this(mode, -1f) { }
+        /// <summary>[Vector4Split] — 无参，默认 FourFloats 模式。</summary>
+        public Vector4SplitDrawer() : this("FourFloats", -1f, null) { }
 
-        /// <summary>[Vector4Split(mode, labelWidth)]</summary>
-        public Vector4SplitDrawer(string mode, float labelWidth)
+        /// <summary>[Vector4Split(mode)] — 旧语法，无类型参数。</summary>
+        public Vector4SplitDrawer(string mode) : this(mode, -1f, null) { }
+
+        /// <summary>[Vector4Split(mode, labelWidth)] — 旧语法 + 自定义 labelWidth。</summary>
+        public Vector4SplitDrawer(string mode, float labelWidth) : this(mode, labelWidth, null) { }
+
+        /// <summary>[Vector4Split(mode, t1, t2)] — TwoVector2 / Vector3Float，2 个分量类型。</summary>
+        public Vector4SplitDrawer(string mode, string t1, string t2)
+            : this(mode, -1f, new[] { t1, t2 }) { }
+
+        /// <summary>[Vector4Split(mode, t1, t2, t3, t4)] — FourFloats，4 个分量类型。</summary>
+        public Vector4SplitDrawer(string mode, string t1, string t2, string t3, string t4)
+            : this(mode, -1f, new[] { t1, t2, t3, t4 }) { }
+
+        /// <summary>[Vector4Split(mode, labelWidth, t1, t2)] — 2 个分量类型 + labelWidth。</summary>
+        public Vector4SplitDrawer(string mode, float labelWidth, string t1, string t2)
+            : this(mode, labelWidth, new[] { t1, t2 }) { }
+
+        /// <summary>[Vector4Split(mode, labelWidth, t1, t2, t3, t4)] — 4 个分量类型 + labelWidth。</summary>
+        public Vector4SplitDrawer(string mode, float labelWidth, string t1, string t2, string t3, string t4)
+            : this(mode, labelWidth, new[] { t1, t2, t3, t4 }) { }
+
+        /// <summary>核心构造函数。</summary>
+        private Vector4SplitDrawer(string mode, float labelWidth, string[] rawTypes)
         {
             _labelWidth = labelWidth;
+            _rawTypes   = rawTypes;
 
             if (Enum.TryParse(mode, true, out SplitMode parsed))
             {
@@ -103,7 +127,7 @@ namespace ScorpioEditor
 
         public override float GetPropertyHeight(MaterialProperty prop, string label, MaterialEditor editor)
         {
-            if (!TryGetValidated(prop, out ComponentConfig[] configs, out string errorMsg))
+            if (!TryGetValidated(prop, editor, out ComponentConfig[] configs, out string errorMsg))
                 return DrawerRectHelper.CalcHelpBoxHeight(errorMsg);
 
             switch (_mode)
@@ -139,7 +163,7 @@ namespace ScorpioEditor
 
         public override void OnGUI(Rect position, MaterialProperty prop, GUIContent label, MaterialEditor editor)
         {
-            if (!TryGetValidated(prop, out ComponentConfig[] configs, out string errorMsg))
+            if (!TryGetValidated(prop, editor, out ComponentConfig[] configs, out string errorMsg))
             {
                 EditorGUI.HelpBox(position, errorMsg, MessageType.Warning);
                 return;
@@ -169,27 +193,23 @@ namespace ScorpioEditor
         // ── 校验 + 解析（合并，消除重复 TryParse）───────────────────
 
         /// <summary>
-        /// 合并三重校验与 displayName 解析，一次调用同时完成两件事。
+        /// 合并三重校验与配置解析。
+        /// 若构造函数传入了 type 字符串，使用 <see cref="Vector4SplitPipeParser"/>（新语法）；
+        /// 否则回退到 <see cref="Vector4SplitDisplayNameParser"/>（旧 <c>## / @</c> 语法）。
         /// </summary>
-        /// <param name="prop">当前 MaterialProperty。</param>
-        /// <param name="configs">解析成功时的分量配置数组；失败时为 null。</param>
-        /// <param name="errorMsg">校验失败时的错误信息；成功时为 null。</param>
-        /// <returns>校验与解析均成功返回 true，否则 false。</returns>
-        private bool TryGetValidated(MaterialProperty prop,
+        private bool TryGetValidated(MaterialProperty prop, MaterialEditor editor,
                                      out ComponentConfig[] configs,
                                      out string errorMsg)
         {
             configs  = null;
             errorMsg = null;
 
-            // 校验1：SplitMode 字符串合法性
             if (!_modeValid)
             {
                 errorMsg = _modeErrorMsg;
                 return false;
             }
 
-            // 校验2：prop.type 必须是 Vector
             if (prop.type != MaterialProperty.PropType.Vector)
             {
                 errorMsg = $"[Vector4Split] Used on a non-Vector property \"{prop.name}\" "
@@ -197,12 +217,14 @@ namespace ScorpioEditor
                 return false;
             }
 
-            // 校验3 + 解析：displayName 格式（## 存在 + 段数正确）
-            bool ok = Vector4SplitDisplayNameParser.TryParse(
+            if (_rawTypes != null)
+                return Vector4SplitPipeParser.TryParse(
+                    prop.displayName, _mode, _rawTypes,
+                    out configs, out errorMsg);
+
+            return Vector4SplitDisplayNameParser.TryParse(
                 prop.displayName, _mode,
                 out _, out configs, out errorMsg);
-
-            return ok;
         }
 
         // ── Drawer 缓存构建 ──────────────────────────────────────────

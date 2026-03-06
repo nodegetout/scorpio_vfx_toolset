@@ -38,6 +38,9 @@ namespace ScorpioEditor
 
         /// <summary>隐藏分量，不绘制不占高度，值保持不变。</summary>
         Hidden,
+
+        /// <summary>枚举下拉框（EditorGUI.IntPopup），需配合 EnumNames/EnumValues 使用。</summary>
+        Enum,
     }
 
     // ── 分量配置 ──────────────────────────────────────────────────────
@@ -58,6 +61,12 @@ namespace ScorpioEditor
 
         /// <summary>Slider 最大值（仅 DrawType == Slider 时有效）。</summary>
         public float Max;
+
+        /// <summary>Enum 选项显示名称（仅 DrawType == Enum 时有效）。</summary>
+        public string[] EnumNames;
+
+        /// <summary>Enum 选项对应整数值（仅 DrawType == Enum 时有效）。</summary>
+        public int[] EnumValues;
     }
 
     // ── displayName 解析器 ────────────────────────────────────────────
@@ -207,6 +216,172 @@ namespace ScorpioEditor
             }
 
             return config;
+        }
+    }
+
+    // ── Pipe 分隔 displayName 解析器 ────────────────────────────────
+
+    /// <summary>
+    /// 解析新语法的 displayName：类型由 <c>[Vector4Split]</c> attribute 传入，
+    /// 标签和附加数据（Slider 范围、Enum 选项）在 displayName 中用 <c>|</c> 分隔。
+    ///
+    /// ── displayName 格式 ─────────────────────────────────────────────
+    ///
+    ///   Title|Seg1|Seg2|Seg3|Seg4
+    ///
+    ///   段数 = SplitMode 决定（FourFloats → 4，TwoVector2/Vector3Float → 2）
+    ///   第一段为标题，后续段为各分量的标签 + 可选附加数据。
+    ///
+    ///   各段格式（由 rawType 决定如何解析）：
+    ///     Float / Toggle / Hidden → 纯标签文本
+    ///     Slider                  → 标签(min, max)
+    ///     Enum                    → 标签(Name1,Val1,Name2,Val2)
+    ///
+    /// ── 示例 ─────────────────────────────────────────────────────────
+    ///
+    ///   [Vector4Split(FourFloats, Toggle, Slider, Slider, Enum)]
+    ///   _Params("参数|开关|范围(0, 2)|强度(0, 1)|模式(Add,0,Multiply,1)", Vector) = (0,0,1,0)
+    /// </summary>
+    public static class Vector4SplitPipeParser
+    {
+        private static readonly Regex s_TrailingParensRegex =
+            new Regex(@"\(([^)]+)\)\s*$");
+
+        /// <summary>
+        /// 将 type 字符串解析为 <see cref="FloatDrawType"/>。
+        /// </summary>
+        public static bool TryParseType(string rawType, out FloatDrawType drawType)
+        {
+            if (rawType.Equals("Float",  StringComparison.OrdinalIgnoreCase)) { drawType = FloatDrawType.Float;  return true; }
+            if (rawType.Equals("Slider", StringComparison.OrdinalIgnoreCase)
+             || rawType.Equals("Range",  StringComparison.OrdinalIgnoreCase)) { drawType = FloatDrawType.Slider; return true; }
+            if (rawType.Equals("Toggle", StringComparison.OrdinalIgnoreCase)) { drawType = FloatDrawType.Toggle; return true; }
+            if (rawType.Equals("Hidden", StringComparison.OrdinalIgnoreCase)) { drawType = FloatDrawType.Hidden; return true; }
+            if (rawType.Equals("Enum",   StringComparison.OrdinalIgnoreCase)) { drawType = FloatDrawType.Enum;   return true; }
+            drawType = FloatDrawType.Float;
+            return false;
+        }
+
+        /// <summary>
+        /// 解析 <c>Title|Seg1|Seg2|...</c> 格式的 displayName，
+        /// 结合 <paramref name="rawTypes"/> 构建分量配置数组。
+        /// </summary>
+        public static bool TryParse(
+            string displayName, SplitMode mode, string[] rawTypes,
+            out ComponentConfig[] configs, out string errorMsg)
+        {
+            configs  = null;
+            errorMsg = null;
+
+            string[] parts         = displayName.Split('|');
+            int      expectedSegs  = mode == SplitMode.FourFloats ? 4 : 2;
+            int      expectedParts = expectedSegs + 1; // +1 for title
+
+            if (parts.Length != expectedParts)
+            {
+                errorMsg = $"[Vector4Split({mode})] displayName expected {expectedParts} parts "
+                         + $"separated by '|' (1 title + {expectedSegs} segments), "
+                         + $"but got {parts.Length}. DisplayName: \"{displayName}\"";
+                return false;
+            }
+
+            if (rawTypes.Length != expectedSegs)
+            {
+                errorMsg = $"[Vector4Split({mode})] Expected {expectedSegs} type parameters, "
+                         + $"but got {rawTypes.Length}.";
+                return false;
+            }
+
+            configs = new ComponentConfig[expectedSegs];
+            for (int i = 0; i < expectedSegs; i++)
+            {
+                string seg = parts[i + 1].Trim();
+
+                if (!TryParseType(rawTypes[i], out FloatDrawType drawType))
+                {
+                    errorMsg = $"[Vector4Split] Unknown type \"{rawTypes[i]}\" for segment {i}. "
+                             + "Valid: Float, Slider, Toggle, Hidden, Enum.";
+                    return false;
+                }
+
+                configs[i] = ParseSegment(seg, drawType);
+            }
+
+            return true;
+        }
+
+        // ── 单段解析 ────────────────────────────────────────────────
+
+        private static ComponentConfig ParseSegment(string seg, FloatDrawType drawType)
+        {
+            var config = new ComponentConfig
+            {
+                DrawType = drawType,
+                Min      = 0f,
+                Max      = 1f,
+            };
+
+            switch (drawType)
+            {
+                case FloatDrawType.Slider:
+                    ExtractTrailingParens(seg, out config.Label, out string sliderInner);
+                    if (sliderInner != null)
+                    {
+                        string[] rangeParts = sliderInner.Split(',');
+                        if (rangeParts.Length >= 2)
+                        {
+                            float.TryParse(rangeParts[0].Trim(), out config.Min);
+                            float.TryParse(rangeParts[1].Trim(), out config.Max);
+                        }
+                    }
+                    break;
+
+                case FloatDrawType.Enum:
+                    ExtractTrailingParens(seg, out config.Label, out string enumInner);
+                    if (enumInner != null)
+                    {
+                        string[] tokens = enumInner.Split(',');
+                        int pairCount = tokens.Length / 2;
+                        if (pairCount > 0)
+                        {
+                            config.EnumNames  = new string[pairCount];
+                            config.EnumValues = new int[pairCount];
+                            for (int j = 0; j < pairCount; j++)
+                            {
+                                config.EnumNames[j] = tokens[j * 2].Trim();
+                                int.TryParse(tokens[j * 2 + 1].Trim(), out int val);
+                                config.EnumValues[j] = val;
+                            }
+                        }
+                    }
+                    break;
+
+                default:
+                    config.Label = seg;
+                    break;
+            }
+
+            return config;
+        }
+
+        /// <summary>
+        /// 提取字符串末尾的 <c>(...)</c> 内容。
+        /// 成功时 <paramref name="label"/> 为去除尾部括号后的文本，
+        /// <paramref name="inner"/> 为括号内的内容；否则 <paramref name="inner"/> 为 null。
+        /// </summary>
+        private static void ExtractTrailingParens(string seg, out string label, out string inner)
+        {
+            var match = s_TrailingParensRegex.Match(seg);
+            if (match.Success)
+            {
+                label = seg.Substring(0, match.Index).Trim();
+                inner = match.Groups[1].Value;
+            }
+            else
+            {
+                label = seg;
+                inner = null;
+            }
         }
     }
 }

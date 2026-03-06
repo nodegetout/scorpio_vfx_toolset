@@ -120,6 +120,39 @@ namespace ScorpioEditor
         public float GetHeight() => 0f;
     }
 
+    /// <summary>
+    /// 枚举下拉框（<see cref="EditorGUI.IntPopup"/>）。
+    /// <para>
+    /// 构造时传入选项名称数组和对应整数值数组；运行时渲染为下拉选择框。
+    /// </para>
+    /// </summary>
+    public class EnumComponentDrawer : IFloatComponentDrawer
+    {
+        private readonly string[] _names;
+        private readonly int[]    _values;
+
+        public EnumComponentDrawer(string[] names, int[] values)
+        {
+            _names  = names;
+            _values = values;
+        }
+
+        public float Draw(Rect rect, string label, float value, bool showMixed, float labelWidth)
+        {
+            EditorGUI.showMixedValue = showMixed;
+            float prev = EditorGUIUtility.labelWidth;
+            if (labelWidth > 0f) EditorGUIUtility.labelWidth = labelWidth;
+
+            int result = EditorGUI.IntPopup(rect, label, (int)value, _names, _values);
+
+            if (labelWidth > 0f) EditorGUIUtility.labelWidth = prev;
+            EditorGUI.showMixedValue = false;
+            return result;
+        }
+
+        public float GetHeight() => EditorGUIUtility.singleLineHeight;
+    }
+
     // ── 工厂 ─────────────────────────────────────────────────────────
 
     /// <summary>
@@ -149,6 +182,11 @@ namespace ScorpioEditor
 
                 case FloatDrawType.Hidden:
                     return new HiddenComponentDrawer();
+
+                case FloatDrawType.Enum:
+                    return new EnumComponentDrawer(
+                        config.EnumNames  ?? new string[0],
+                        config.EnumValues ?? new int[0]);
 
                 case FloatDrawType.Float:
                 default:
