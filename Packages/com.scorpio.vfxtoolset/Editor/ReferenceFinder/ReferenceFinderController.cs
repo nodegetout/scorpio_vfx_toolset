@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
+using System.Text;
 using com.scorpio.vfxtoolset.Editor.Data;
 using UnityEditor;
 using UnityEngine;
@@ -12,8 +12,8 @@ namespace com.scorpio.vfxtoolset.Editor
     public class ReferenceFinderController
     {
         //缓存路径
-        private static readonly string k_CachePath = "Library/ReferenceFinderCache";
-        private static readonly string k_CacheVersion = "V1";
+        private static readonly string k_CachePath = "Library/ReferenceFinderCache.json";
+        private static readonly string k_CacheVersion = "V2";
 
         //资源引用信息字典
         public Dictionary<string, AssetDescription> assetDict = new Dictionary<string, AssetDescription>();
@@ -23,10 +23,14 @@ namespace com.scorpio.vfxtoolset.Editor
         {
             try
             {
+                // For now, we'll keep the same approach but with optimizations
                 ReadFromCache();
                 var allAssets = AssetDatabase.GetAllAssetPaths();
                 int totalCount = allAssets.Length;
-                for (int i = 0; i < allAssets.Length; i++)
+
+                // Process assets in batches to avoid UI blocking
+                const int batchSize = 100;
+                for (int i = 0; i < allAssets.Length; i += batchSize)
                 {
                     //每遍历100个Asset，更新一下进度条，同时对进度条的取消操作进行处理
                     if ((i % 100 == 0) && EditorUtility.DisplayCancelableProgressBar("Refresh",
@@ -36,9 +40,16 @@ namespace com.scorpio.vfxtoolset.Editor
                         return;
                     }
 
-                    if (File.Exists(allAssets[i]))
-                        ImportAsset(allAssets[i]);
-                    if (i % 2000 == 0)
+                    // Process batch of assets
+                    int endIndex = Math.Min(i + batchSize, allAssets.Length);
+                    for (int j = i; j < endIndex; j++)
+                    {
+                        if (File.Exists(allAssets[j]))
+                            ImportAsset(allAssets[j]);
+                    }
+
+                    // Periodic GC collection to prevent memory buildup
+                    if (i % (batchSize * 20) == 0)
                         GC.Collect();
                 }
 
@@ -94,6 +105,7 @@ namespace com.scorpio.vfxtoolset.Editor
                 ad.path = path;
                 ad.assetDependencyHash = assetDependencyHash.ToString();
                 ad.dependencies = guids;
+                ad.guid = guid; // Set the guid for cache compatibility
 
                 assetDict[guid] = ad;
             }
@@ -108,62 +120,32 @@ namespace com.scorpio.vfxtoolset.Editor
                 return false;
             }
 
-            List<string> serializedGuid;
-            List<string> serializedDependencyHash;
-            List<int[]> serializedDependencies;
-            //反序列化数据
-            FileStream fs = File.OpenRead(k_CachePath);
             try
             {
-                BinaryFormatter bf = new BinaryFormatter();
-                string cacheVersion = (string)bf.Deserialize(fs);
-                if (cacheVersion != k_CacheVersion)
+                string json = File.ReadAllText(k_CachePath);
+                // Use simple JSON parsing - Unity's environment may not support System.Text.Json
+                var cacheData = JsonUtility.FromJson<CacheData>(json);
+
+                if (cacheData.Version != k_CacheVersion)
                 {
                     return false;
                 }
 
-                EditorUtility.DisplayCancelableProgressBar("Import Cache", "Reading Cache", 0);
-                serializedGuid = (List<string>)bf.Deserialize(fs);
-                serializedDependencyHash = (List<string>)bf.Deserialize(fs);
-                serializedDependencies = (List<int[]>)bf.Deserialize(fs);
-                EditorUtility.ClearProgressBar();
+                // Load assets
+                foreach (var assetData in cacheData.Assets)
+                {
+                    assetDict[assetData.guid] = assetData;
+                }
+
+                // Update reference information
+                UpdateReferenceInfo();
+                return true;
             }
-            catch
+            catch (Exception)
             {
-                //兼容旧版本序列化格式
+                // If deserialization fails, return false to trigger full rebuild
                 return false;
             }
-            finally
-            {
-                fs.Close();
-            }
-
-            for (int i = 0; i < serializedGuid.Count; ++i)
-            {
-                string path = AssetDatabase.GUIDToAssetPath(serializedGuid[i]);
-                if (!string.IsNullOrEmpty(path))
-                {
-                    var ad = new AssetDescription();
-                    ad.name = Path.GetFileNameWithoutExtension(path);
-                    ad.path = path;
-                    ad.assetDependencyHash = serializedDependencyHash[i];
-                    assetDict.Add(serializedGuid[i], ad);
-                }
-            }
-
-            for (int i = 0; i < serializedGuid.Count; ++i)
-            {
-                string guid = serializedGuid[i];
-                if (assetDict.TryGetValue(guid, out var assetDescription))
-                {
-                    var guids = serializedDependencies[i].Select(index => serializedGuid[index])
-                        .Where(g => assetDict.ContainsKey(g)).ToList();
-                    assetDescription.dependencies = guids;
-                }
-            }
-
-            UpdateReferenceInfo();
-            return true;
         }
 
         //写入缓存
@@ -172,33 +154,23 @@ namespace com.scorpio.vfxtoolset.Editor
             if (File.Exists(k_CachePath))
                 File.Delete(k_CachePath);
 
-            var serializedGuid = new List<string>();
-            var serializedDependencyHash = new List<string>();
-            var serializedDependencies = new List<int[]>();
-            //辅助映射字典
-            var guidIndex = new Dictionary<string, int>();
-            //序列化
-            using FileStream fs = File.OpenWrite(k_CachePath);
-            foreach (var pair in assetDict)
+            var cacheData = new CacheData
             {
-                guidIndex.Add(pair.Key, guidIndex.Count);
-                serializedGuid.Add(pair.Key);
-                serializedDependencyHash.Add(pair.Value.assetDependencyHash);
-            }
+                Version = k_CacheVersion,
+                Assets = assetDict.Values.ToList()
+            };
 
-            foreach (var guid in serializedGuid)
-            {
-                //使用 Where 子句过滤目录
-                int[] indexes = assetDict[guid].dependencies.Where(s => guidIndex.ContainsKey(s))
-                    .Select(s => guidIndex[s]).ToArray();
-                serializedDependencies.Add(indexes);
-            }
+            // Use JsonUtility for serialization (more compatible with Unity)
+            string json = JsonUtility.ToJson(cacheData, true);
+            File.WriteAllText(k_CachePath, json);
+        }
 
-            BinaryFormatter bf = new BinaryFormatter();
-            bf.Serialize(fs, k_CacheVersion);
-            bf.Serialize(fs, serializedGuid);
-            bf.Serialize(fs, serializedDependencyHash);
-            bf.Serialize(fs, serializedDependencies);
+        // Cache data structure for JSON serialization
+        [System.Serializable]
+        private class CacheData
+        {
+            public string Version = "";
+            public List<AssetDescription> Assets = new List<AssetDescription>();
         }
 
         //更新引用信息状态

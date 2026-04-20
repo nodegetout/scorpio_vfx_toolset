@@ -2,6 +2,7 @@ using System.Collections.Generic;
 
 namespace com.scorpio.vfxtoolset.Editor.Data
 {
+    [System.Serializable]
     public class AssetDescription
     {
         public string name = "";
@@ -10,5 +11,6 @@ namespace com.scorpio.vfxtoolset.Editor.Data
         public List<string> dependencies = new List<string>();
         public List<string> references = new List<string>();
         public ReferenceFinderController.AssetState state = ReferenceFinderController.AssetState.NORMAL;
+        public string guid; // Added for cache compatibility
     }
 }

@@ -15,7 +15,7 @@ namespace com.scorpio.vfxtoolset.Editor
         //是否需要更新信息状态的key
         const string needUpdateStatePrefKey = "ReferenceFinderData_needUpdateState";
 
-        private static ReferenceFinderController _controller = new ReferenceFinderController();
+        public static ReferenceFinderController _controller = new ReferenceFinderController();
         private static bool initializedData = false;
 
         private bool isDepend = false;
@@ -235,11 +235,6 @@ namespace com.scorpio.vfxtoolset.Editor
                 return null;
 
             stack.Push(guid);
-            if (needUpdateState && !updatedAssetSet.Contains(guid))
-            {
-                _controller.UpdateAssetState(guid);
-                updatedAssetSet.Add(guid);
-            }
 
             ++elementCount;
             var referenceData = _controller.assetDict[guid];
